@@ -15,8 +15,13 @@ private:
   double mesh_size_z;
   int mx, my, mz;
   int particle_position[N];
+#ifdef AVX2
+  int key_partner_pairs[PAIRLIST_SIZE][2];
+#else
   int *key_particles;
   int *partner_particles;
+#endif
+
   int * mesh_index;
   int * mesh_index2;
   int * mesh_particle_number;
@@ -43,8 +48,17 @@ public:
 
   void ChangeScale(SimulationInfo *sinfo, MDRect &myrect);
 
+#ifdef AVX2
+  enum {
+    KEY = 0,
+    PARTNER = 1,
+  };
+  int (*GetKeyPartnerPairs(void))[2] {return key_partner_pairs;};
+#else
   int *GetKeyParticles(void) {return key_particles;};
   int *GetPartnerParticles(void) {return partner_particles;};
+#endif
+
   int GetPairNumber(void) {return number_of_pairs;};
   int GetPartnerNumber(int i) {return number_of_partners[i];};
   int *GetSortedList(void) {return sorted_list;};

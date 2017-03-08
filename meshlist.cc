@@ -6,8 +6,13 @@
 #include "mpistream.h"
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
+#ifdef AVX2
+
+#else
   key_particles = new int[PAIRLIST_SIZE];
   partner_particles = new int[PAIRLIST_SIZE];
+#endif
+
   number_of_constructions = 0;
   sort_interval = 10;
 
@@ -23,8 +28,12 @@ MeshList::~MeshList(void) {
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
 
+#ifdef AVX2
+
+#else
   delete [] key_particles;
   delete [] partner_particles;
+#endif
 }
 //----------------------------------------------------------------------
 void
@@ -77,8 +86,13 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
 
   const int s = number_of_pairs;
   for (int k = 0; k < s; k++) {
+#ifdef AVX2
+    int i = key_partner_pairs[k][KEY];
+    int j = key_partner_pairs[k][PARTNER];
+#else
     int i = key_particles[k];
     int j = partner_particles[k];
+#endif
     int index = key_pointer[i] + key_pointer2[i];
     sorted_list[index] = j;
     key_pointer2[i] ++;
@@ -295,8 +309,14 @@ MeshList::RegisterPair(int index1, int index2) {
     i2 = index1;
   }
 
+#ifdef AVX2
+  key_partner_pairs[number_of_pairs][KEY] = i1;
+  key_partner_pairs[number_of_pairs][PARTNER] = i2;
+#else
   key_particles[number_of_pairs] = i1;
   partner_particles[number_of_pairs] = i2;
+#endif
+
   number_of_partners[i1]++;
   number_of_pairs++;
 #ifdef FX10
@@ -312,7 +332,12 @@ MeshList::RegisterPair(int index1, int index2) {
 void
 MeshList::ShowPairs(void) {
   for (int i = 0; i < number_of_pairs; i++) {
+#ifdef AVX2
+    printf("(%05d,%05d)\n",
+           key_partner_pairs[i][KEY], key_partner_pairs[i][PARTNER]);
+#else
     printf("(%05d,%05d)\n", key_particles[i], partner_particles[i]);
+#endif
   }
 }
 //----------------------------------------------------------------------

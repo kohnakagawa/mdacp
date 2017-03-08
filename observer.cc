@@ -25,11 +25,21 @@ PotentialEnergyObserver::Observe(Variables *vars, MeshList *mesh) {
   double energy = 0.0;
 
   const int s = mesh->GetPairNumber();
+#ifdef AVX2
+  int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
+#else
   int *key_particles = mesh->GetKeyParticles();
   int *partner_particles = mesh->GetPartnerParticles();
+#endif
   for (int k = 0; k < s; k++) {
+#ifdef AVX2
+    int i = key_partner_pairs[k][MeshList::KEY];
+    int j = key_partner_pairs[k][MeshList::PARTNER];
+#else
     int i = key_particles[k];
     int j = partner_particles[k];
+#endif
+
     double dx = q[i][X] - q[j][X];
     double dy = q[i][Y] - q[j][Y];
     double dz = q[i][Z] - q[j][Z];
@@ -55,11 +65,22 @@ VirialObserver::Observe(Variables *vars, MeshList *mesh) {
   const double C_2 = vars->GetC2();
   const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
   const int s = mesh->GetPairNumber();
+
+#ifdef AVX2
+  int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
+#else
   int *key_particles = mesh->GetKeyParticles();
   int *partner_particles = mesh->GetPartnerParticles();
+#endif
   for (int k = 0; k < s; k++) {
+#ifdef AVX2
+    int i = key_partner_pairs[k][MeshList::KEY];
+    int j = key_partner_pairs[k][MeshList::PARTNER];
+#else
     int i = key_particles[k];
     int j = partner_particles[k];
+#endif
+
     double dx = q[j][X] - q[i][X];
     double dy = q[j][Y] - q[i][Y];
     double dz = q[j][Z] - q[i][Z];
