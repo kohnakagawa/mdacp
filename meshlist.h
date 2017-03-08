@@ -15,7 +15,7 @@ private:
   double mesh_size_z;
   int mx, my, mz;
   int particle_position[N];
-#ifdef AVX2
+#ifdef MESH_SIMD
   int shfl_table[16][8];
   void MakeShflTable();
   int key_partner_pairs[PAIRLIST_SIZE][2];
@@ -51,7 +51,7 @@ public:
 
   void ChangeScale(SimulationInfo *sinfo, MDRect &myrect);
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   enum {
     KEY = 0,
     PARTNER = 1,

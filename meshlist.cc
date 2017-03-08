@@ -4,12 +4,12 @@
 #include <fstream>
 #include "meshlist.h"
 #include "mpistream.h"
-#ifdef AVX2
+#ifdef MESH_SIMD
 #include "simd_avx2.h"
 #endif
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
-#ifdef AVX2
+#ifdef MESH_SIMD
 
 #else
   key_particles = new int[PAIRLIST_SIZE];
@@ -24,7 +24,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   mesh_particle_number = NULL;
   ChangeScale(sinfo, r);
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   MakeShflTable();
 #endif
 }
@@ -35,7 +35,7 @@ MeshList::~MeshList(void) {
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
 
-#ifdef AVX2
+#ifdef MESH_SIMD
 
 #else
   delete [] key_particles;
@@ -80,7 +80,7 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
   MakeListMesh(vars, sinfo, myrect);
   //MakeListBruteforce(vars,sinfo,myrect);
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   const int s = number_of_pairs;
   for (int k = 0; k < s; k++) {
     const int i = key_partner_pairs[k][KEY];
@@ -99,11 +99,11 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
     key_pointer2[i] = 0;
   }
 
-#ifndef AVX2
+#ifndef MESH_SIMD
   const int s = number_of_pairs;
 #endif
   for (int k = 0; k < s; k++) {
-#ifdef AVX2
+#ifdef MESH_SIMD
     int i = key_partner_pairs[k][KEY];
     int j = key_partner_pairs[k][PARTNER];
 #else
@@ -282,7 +282,7 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
   const int in = mesh_particle_number[index];
   const int ln = v.size();
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   const v4di vpn = _mm256_set1_epi64x(pn);
   const v4df vsl2 = _mm256_set1_pd(S2);
   for (int i = 0; i < (in / 4) * 4 ; i += 4) {
@@ -414,7 +414,7 @@ MeshList::RegisterPair(int index1, int index2) {
     i2 = index1;
   }
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
 #else
@@ -450,7 +450,7 @@ MeshList::RegisterInteractPair(const double q[][D],
 void
 MeshList::ShowPairs(void) {
   for (int i = 0; i < number_of_pairs; i++) {
-#ifdef AVX2
+#ifdef MESH_SIMD
     printf("(%05d,%05d)\n",
            key_partner_pairs[i][KEY], key_partner_pairs[i][PARTNER]);
 #else
@@ -472,7 +472,7 @@ MeshList::ShowSortedList(Variables *vars) {
   }
 }
 //----------------------------------------------------------------------
-#ifdef AVX2
+#ifdef MESH_SIMD
 void
 MeshList::MakeShflTable() {
   for (int i = 0; i < 16; i++) {

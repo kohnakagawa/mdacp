@@ -473,7 +473,7 @@ ForceCalculator::CalculateForcePair(Variables *vars, MeshList *mesh, SimulationI
   double (*q)[D] = vars->q;
   double (*p)[D] = vars->p;
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
 #else
   int *key_index = mesh->GetKeyParticles();
@@ -482,7 +482,7 @@ ForceCalculator::CalculateForcePair(Variables *vars, MeshList *mesh, SimulationI
 
   const int number_of_pairs = mesh->GetPairNumber();
   for (int k = 0; k < number_of_pairs; k++) {
-#ifdef AVX2
+#ifdef MESH_SIMD
     int i = key_partner_pairs[k][MeshList::KEY];
     int j = key_partner_pairs[k][MeshList::PARTNER];
 #else

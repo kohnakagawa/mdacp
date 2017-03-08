@@ -25,14 +25,14 @@ PotentialEnergyObserver::Observe(Variables *vars, MeshList *mesh) {
   double energy = 0.0;
 
   const int s = mesh->GetPairNumber();
-#ifdef AVX2
+#ifdef MESH_SIMD
   int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
 #else
   int *key_particles = mesh->GetKeyParticles();
   int *partner_particles = mesh->GetPartnerParticles();
 #endif
   for (int k = 0; k < s; k++) {
-#ifdef AVX2
+#ifdef MESH_SIMD
     int i = key_partner_pairs[k][MeshList::KEY];
     int j = key_partner_pairs[k][MeshList::PARTNER];
 #else
@@ -66,14 +66,14 @@ VirialObserver::Observe(Variables *vars, MeshList *mesh) {
   const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
   const int s = mesh->GetPairNumber();
 
-#ifdef AVX2
+#ifdef MESH_SIMD
   int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
 #else
   int *key_particles = mesh->GetKeyParticles();
   int *partner_particles = mesh->GetPartnerParticles();
 #endif
   for (int k = 0; k < s; k++) {
-#ifdef AVX2
+#ifdef MESH_SIMD
     int i = key_partner_pairs[k][MeshList::KEY];
     int j = key_partner_pairs[k][MeshList::PARTNER];
 #else
