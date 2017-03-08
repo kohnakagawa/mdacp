@@ -9,13 +9,7 @@
 #include "simd_fx10.h"
 #endif
 #ifdef AVX2
-#include <immintrin.h>
-typedef double v4df __attribute__((vector_size(32)));
-void
-put(v4df r) {
-  double *a = (double*)(&r);
-  printf("%.10f %.10f %.10f %.10f\n", a[0], a[1], a[2], a[3]);
-}
+#include "simd_avx2.h"
 #endif
 //----------------------------------------------------------------------
 void

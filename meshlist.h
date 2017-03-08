@@ -16,6 +16,8 @@ private:
   int mx, my, mz;
   int particle_position[N];
 #ifdef AVX2
+  int shfl_table[16][8];
+  void MakeShflTable();
   int key_partner_pairs[PAIRLIST_SIZE][2];
 #else
   int *key_particles;
@@ -33,6 +35,7 @@ private:
   int sorted_list[PAIRLIST_SIZE];
   int number_of_constructions;
   inline void RegisterPair(int index1, int index2);
+  inline void RegisterInteractPair(const double q[][D], int index1, int index2, const double S2);
   int sort_interval;
 
   void MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
