@@ -7,11 +7,10 @@
 #ifdef MESH_SIMD
 #include "simd_avx2.h"
 #endif
+#include <sys/time.h>
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
-#ifdef MESH_SIMD
-
-#else
+#ifndef MESH_SIMD
   key_particles = new int[PAIRLIST_SIZE];
   partner_particles = new int[PAIRLIST_SIZE];
 #endif
@@ -35,9 +34,7 @@ MeshList::~MeshList(void) {
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
 
-#ifdef MESH_SIMD
-
-#else
+#ifndef MESH_SIMD
   delete [] key_particles;
   delete [] partner_particles;
 #endif
@@ -138,10 +135,14 @@ MeshList::MakeListBruteforce(Variables *vars, SimulationInfo *sinfo, MDRect &myr
 //----------------------------------------------------------------------
 void
 MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
+  timeval tv1, tv2;
+  gettimeofday(&tv1, NULL);
   MakeMesh(vars, sinfo, myrect);
   for (int i = 0; i < number_of_mesh; i++) {
     SearchMesh(i, vars, sinfo);
   }
+  gettimeofday(&tv2, NULL);
+  std::cout << "makelistmesh " << (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6 << std::endl;
 }
 //----------------------------------------------------------------------
 void
@@ -301,11 +302,10 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
     v4df vqix, vqiy, vqiz;
     transpose_4x4(vqia, vqib, vqic, vqid, vqix, vqiy, vqiz);
 
-    v4di i_less_than_pn = _mm256_cmpgt_epi64(vpn, vi_id);
-
+    const int i_less_than_pn = _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpgt_epi64(vpn, vi_id)));
     for (int k = i + 4; k < ln; k++) {
       const int j = v[k];
-      v4di vj_id = _mm256_set1_epi64x(j);
+      const int j_less_than_pn = (j < pn) ? 0xf : 0;
 
       v4df vqjx = _mm256_set1_pd(q[j][X]);
       v4df vqjy = _mm256_set1_pd(q[j][Y]);
@@ -317,19 +317,15 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
 
       v4df dvr2 = dvx * dvx + dvy * dvy + dvz * dvz;
 
-      v4di j_less_than_pn = _mm256_cmpgt_epi64(vpn, vj_id);
-      v4df less_than_sl2 = _mm256_cmp_pd(dvr2, vsl2, _CMP_LE_OS);
+      v4df dvr2_flag = _mm256_cmp_pd(dvr2, vsl2, _CMP_LE_OS);
+      int less_than_sl2 = _mm256_movemask_pd(dvr2_flag);
 
-      v4df in_range = _mm256_castsi256_pd(_mm256_or_si256(i_less_than_pn, j_less_than_pn));
-      in_range = _mm256_castsi256_pd(_mm256_and_si256(_mm256_castpd_si256(in_range),
-                                                      _mm256_castpd_si256(less_than_sl2)));
-
-      const int shfl_key = _mm256_movemask_pd(in_range);
-
+      const int shfl_key = (i_less_than_pn | j_less_than_pn) & less_than_sl2;
       if (shfl_key == 0) continue;
 
       const int incr = _popcnt32(shfl_key);
 
+      v4di vj_id = _mm256_set1_epi64x(j);
       v8si vkey_id = _mm256_min_epi32(vi_id, vj_id);
       v8si vpart_id = _mm256_max_epi32(vi_id, vj_id);
       vpart_id = _mm256_slli_si256(vpart_id, 0x4);
