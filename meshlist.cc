@@ -7,7 +7,6 @@
 #ifdef MESH_SIMD
 #include "simd_avx2.h"
 #endif
-#include <sys/time.h>
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 #ifndef MESH_SIMD
@@ -135,14 +134,10 @@ MeshList::MakeListBruteforce(Variables *vars, SimulationInfo *sinfo, MDRect &myr
 //----------------------------------------------------------------------
 void
 MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
-  timeval tv1, tv2;
-  gettimeofday(&tv1, NULL);
   MakeMesh(vars, sinfo, myrect);
   for (int i = 0; i < number_of_mesh; i++) {
     SearchMesh(i, vars, sinfo);
   }
-  gettimeofday(&tv2, NULL);
-  std::cout << "makelistmesh " << (tv2.tv_sec - tv1.tv_sec) + (tv2.tv_usec - tv1.tv_usec) * 1.0e-6 << std::endl;
 }
 //----------------------------------------------------------------------
 void
