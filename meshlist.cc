@@ -2,6 +2,7 @@
 #include <iostream>
 #include <assert.h>
 #include <fstream>
+#include <algorithm>
 #include "meshlist.h"
 #include "mpistream.h"
 #ifdef MESH_SIMD
@@ -463,6 +464,7 @@ MeshList::ShowSortedList(Variables *vars) {
 #ifdef MESH_SIMD
 void
 MeshList::MakeShflTable() {
+  std::fill(shfl_table[0], shfl_table[16], 0);
   for (int i = 0; i < 16; i++) {
     int tbl_id = i;
     int cnt = 0;
