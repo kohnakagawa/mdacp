@@ -1,8 +1,11 @@
-
 #include <iostream>
 #include <omp.h>
 #include <mpi.h>
 #include <stdlib.h>
+#ifdef USE_GPU
+#include <cuda_runtime.h>
+#include <helper_cuda.h>
+#endif
 #include "communicator.h"
 #include "mpistream.h"
 #include "mdmanager.h"
@@ -25,6 +28,15 @@ MDManager::MDManager(int &argc, char ** &argv) {
   param.LoadFromFile(inputfile.c_str());
   num_threads = omp_get_max_threads();
   mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
+
+#ifdef USE_GPU
+  int device_cnt = 0;
+  checkCudaErrors(cudaGetDeviceCount(&device_cnt));
+  if (device_cnt != num_threads) {
+    mout << "# of NVIDIA GPUs shoud be equal to # of OpenMP Thread(s).\n";
+    exit(1);
+  }
+#endif
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
   int grid_size[D];

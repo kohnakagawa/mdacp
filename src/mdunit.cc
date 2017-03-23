@@ -2,6 +2,10 @@
 #include <iostream>
 #include <fstream>
 #include <string.h>
+#ifdef USE_GPU
+#include <cuda_runtime.h>
+#include <helper_cuda.h>
+#endif
 #include "mdunit.h"
 #include "fcalculator.h"
 //----------------------------------------------------------------------
@@ -24,6 +28,9 @@ MDUnit::MDUnit(int id_, SimulationInfo *si, ParaInfo *pi):
   }
   myrect = MDRect(s, e);
   mesh = new MeshList(sinfo, myrect);
+#ifdef USE_GPU
+  checkCudaErrors(cudaSetDevice(omp_get_thread_num()));
+#endif
 };
 //----------------------------------------------------------------------
 MDUnit::~MDUnit(void) {
