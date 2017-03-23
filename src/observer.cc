@@ -51,7 +51,7 @@ PotentialEnergyObserver::Observe(Variables *vars, MeshList *mesh) {
     }
     energy += e;
   }
-#ifdef FX10
+#if defined FX10 || defined USE_GPU
   energy *= 0.5;
 #endif
   return energy;
@@ -93,7 +93,7 @@ VirialObserver::Observe(Variables *vars, MeshList *mesh) {
     }
     phi += df;
   }
-#ifdef FX10
+#if defined FX10 || defined USE_GPU
   phi *= 0.5;
 #endif
   return phi / 3.0;

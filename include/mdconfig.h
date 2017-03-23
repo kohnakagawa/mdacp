@@ -6,11 +6,26 @@
 #include <stdlib.h>
 #include <math.h>
 
-const int D = 4;
-const int X = 0, Y = 1, Z = 2;
-const int N = 1000000;
-const int PAIRLIST_SIZE = N * 80;
-//const int PAIRLIST_SIZE = N*30;
+constexpr int D = 4;
+constexpr int X = 0, Y = 1, Z = 2;
+constexpr int N = 1000000;
+constexpr int PAIRLIST_SIZE = N * 80;
+//constexpr int PAIRLIST_SIZE = N*30;
+
+#ifdef USE_GPU
+#include <vector_types.h>
+constexpr int THREAD_BLOCK_SIZE = 256;
+template <std::size_t dim>
+struct Vec {typedef double Type;}; // dummy
+// NOTE: D == 2 not supported.
+// template <>
+// struct Vec<2> {typedef double2 Type;};
+template <>
+struct Vec<3> {typedef double3 Type;};
+template <>
+struct Vec<4> {typedef double4 Type;};
+typedef Vec<D>::Type VecCuda;
+#endif
 
 const double CUTOFF_LENGTH = 3.0;
 //const double CUTOFF_LENGTH = 2.5;

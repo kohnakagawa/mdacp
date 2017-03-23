@@ -25,6 +25,11 @@ Variables::Variables(void) {
   const double s14 = s12 * s2;
   C2 = 6.0 * s14 - 3.0 * s8;
   C0 = -s12 + s6 - C2 / s2;
+
+#ifdef USE_GPU
+  q = q_buf.GetHostPtr();
+  p = p_buf.GetHostPtr();
+#endif
 }
 //----------------------------------------------------------------------
 void

@@ -6,6 +6,9 @@
 #include "mdconfig.h"
 #include "variables.h"
 #include "mdrect.h"
+#ifdef USE_GPU
+#include "cuda_ptr.h"
+#endif
 //----------------------------------------------------------------------
 class MeshList {
 private:
@@ -28,11 +31,20 @@ private:
   int * mesh_index2;
   int * mesh_particle_number;
   int sortbuf[N];
+#ifdef USE_GPU
+  CudaPtr<int> key_pointer;
+#else
   int key_pointer[N];
+#endif
   int key_pointer2[N];
   int number_of_mesh;
+#ifdef USE_GPU
+  CudaPtr<int> number_of_partners;
+  CudaPtr<int> sorted_list;
+#else
   int number_of_partners[N];
   int sorted_list[PAIRLIST_SIZE];
+#endif
   int number_of_constructions;
   inline void RegisterPair(int index1, int index2);
   inline void RegisterInteractPair(const double q[][D], int index1, int index2, const double S2);
@@ -63,11 +75,23 @@ public:
 #endif
 
   int GetPairNumber(void) {return number_of_pairs;};
+
   int GetPartnerNumber(int i) {return number_of_partners[i];};
-  int *GetSortedList(void) {return sorted_list;};
   int GetKeyPointer(int i) {return key_pointer[i];};
+#ifdef USE_GPU
+  const CudaPtr<int>& GetCudaPtrSortedList(void) const {return sorted_list;};
+  const CudaPtr<int>& GetCudaPtrKeyPointerP(void) const {return key_pointer;};
+  const CudaPtr<int>& GetCudaPtrNumberOfPartners(void) const {return number_of_partners;};
+  void SendNeighborInfoToGPU(Variables *vars);
+  int *GetSortedList(void) {return sorted_list.GetHostPtr();};
+  int* GetKeyPointerP(void) {return key_pointer.GetHostPtr();};
+  int* GetNumberOfPartners(void) {return number_of_partners.GetHostPtr();};
+#else
+  int *GetSortedList(void) {return sorted_list;};
   int* GetKeyPointerP(void) {return key_pointer;};
   int* GetNumberOfPartners(void) {return number_of_partners;};
+#endif
+
   void Sort(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
   int GetNumberOfConstructions(void) {return number_of_constructions;};
   void ClearNumberOfConstructions(void) {number_of_constructions = 0;};

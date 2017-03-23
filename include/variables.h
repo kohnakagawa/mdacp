@@ -5,6 +5,9 @@
 #include <iostream>
 #include "mdconfig.h"
 #include "simulationinfo.h"
+#ifdef USE_GPU
+#include "cuda_ptr2d.h"
+#endif
 //----------------------------------------------------------------------
 class Variables {
 private:
@@ -14,8 +17,15 @@ private:
 public:
   Variables(void);
   int type[N];
+#ifdef USE_GPU
+  double (*q)[D];
+  double (*p)[D];
+  CudaPtr2D<double, N, D> q_buf;
+  CudaPtr2D<double, N, D> p_buf;
+#else
   __attribute__((aligned(64))) double q[N][D];
   __attribute__((aligned(64))) double p[N][D];
+#endif
   double Zeta;
   double SimulationTime;
   double GetC0(void) {return C0;};

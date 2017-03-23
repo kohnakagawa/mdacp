@@ -2,6 +2,7 @@
 #include <iostream>
 #include <assert.h>
 #include <fstream>
+#include <algorithm>
 #include "meshlist.h"
 #include "mpistream.h"
 #ifdef MESH_SIMD
@@ -21,6 +22,12 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   mesh_index2 = NULL;
   mesh_particle_number = NULL;
   ChangeScale(sinfo, r);
+
+#ifdef USE_GPU
+  key_pointer.Allocate(N);
+  number_of_partners.Allocate(N);
+  sorted_list.Allocate(PAIRLIST_SIZE);
+#endif
 
 #ifdef MESH_SIMD
   MakeShflTable();
@@ -110,6 +117,9 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
     sorted_list[index] = j;
     key_pointer2[i] ++;
   }
+#ifdef USE_GPU
+  SendNeighborInfoToGPU(vars);
+#endif
   number_of_constructions++;
 }
 //----------------------------------------------------------------------
@@ -408,7 +418,7 @@ MeshList::RegisterPair(int index1, int index2) {
 #ifdef MESH_SIMD
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
-#elif defined FX10
+#elif defined FX10 || defined USE_GPU
   key_particles[number_of_pairs] = i2;
   partner_particles[number_of_pairs] = i1;
   number_of_partners[i2]++;
@@ -462,7 +472,8 @@ MeshList::ShowSortedList(Variables *vars) {
 //----------------------------------------------------------------------
 #ifdef MESH_SIMD
 void
-MeshList::MakeShflTable() {
+MeshList::MakeShflTable(void) {
+  std::fill(shfl_table[0], shfl_table[16], 0);
   for (int i = 0; i < 16; i++) {
     int tbl_id = i;
     int cnt = 0;
@@ -474,6 +485,16 @@ MeshList::MakeShflTable() {
       tbl_id >>= 1;
     }
   }
+}
+#endif
+//----------------------------------------------------------------------
+#ifdef USE_GPU
+void
+MeshList::SendNeighborInfoToGPU(Variables *vars) {
+  sorted_list.Host2Dev(0, number_of_pairs);
+  const int pn = vars->GetParticleNumber();
+  key_pointer.Host2Dev(0, pn);
+  number_of_partners.Host2Dev(0, pn);
 }
 #endif
 //----------------------------------------------------------------------

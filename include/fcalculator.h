@@ -20,6 +20,9 @@ namespace ForceCalculator {
 #ifdef AVX2
    void CalculateForceAVX2(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
 #endif
+#ifdef USE_GPU
+   void CalculateForceGPU(Variables* vars, MeshList *mesh, SimulationInfo *sinfo);
+#endif
    void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo);
    void CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
    void HeatbathZeta(Variables *vars, double ct, SimulationInfo *sinfo);
