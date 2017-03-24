@@ -33,15 +33,15 @@ if (USE_GPU_CUDA)
 endif()
 
 # for AVX
-# add_definitions(-DAVX2)
+add_definitions(-DAVX2)
 # add_definitions(-DMESH_SIMD)
 
 # enable C++11, avx intrinsics, and OpenMP
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11 -march=native -fopenmp")
 
 add_executable(mdacp ${mdacp_srcs})
-target_link_libraries(mdacp mpi mpi++) # for SGI MPT
-# target_link_libraries(mdacp mpi) # for Intel MPI
+# target_link_libraries(mdacp mpi mpi++) # for SGI MPT
+target_link_libraries(mdacp mpi) # for Intel MPI
 
 if (USE_GPU_CUDA)
   link_directories(${CUDA_PATH}/lib64)

@@ -36,7 +36,8 @@ ForceCalculator::CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo 
   CalculateForceReactlessSIMD_errsafe(vars, mesh, sinfo);
 #elif USE_GPU
   // CalculateForceReactless(vars,mesh,sinfo);
-  CalculateForceGPU(vars, mesh, sinfo);
+  // CalculateForceGPU(vars, mesh, sinfo);
+  CalculateForceCPUGPUHybrid(vars, mesh, sinfo);
 #elif AVX2
   CalculateForceAVX2(vars, mesh, sinfo);
 #else
@@ -538,6 +539,128 @@ ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, Simula
     p[i][Y] += pfy;
     p[i][Z] += pfz;
   }
+}
+//----------------------------------------------------------------------
+void
+ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
+                                             double p[][D],
+                                             const int* sorted_list,
+                                             const int* number_of_partners,
+                                             const int* pointer,
+                                             const double CL2,
+                                             const double C2,
+                                             const double dt,
+                                             const int beg,
+                                             const int pn) {
+#if 1
+#pragma omp parallel for
+  for (int i = beg; i < pn; i++) {
+    const double qx_key = q[i][X];
+    const double qy_key = q[i][Y];
+    const double qz_key = q[i][Z];
+    const int np = number_of_partners[i];
+    double pfx = 0;
+    double pfy = 0;
+    double pfz = 0;
+    const int kp = pointer[i];
+    for (int k = 0; k < np; k++) {
+      const int j = sorted_list[kp + k];
+      double dx = q[j][X] - qx_key;
+      double dy = q[j][Y] - qy_key;
+      double dz = q[j][Z] - qz_key;
+      double r2 = (dx * dx + dy * dy + dz * dz);
+      double r6 = r2 * r2 * r2;
+      double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+      if (r2 > CL2) {
+        df = 0.0;
+      }
+      pfx += df * dx;
+      pfy += df * dy;
+      pfz += df * dz;
+    }
+    p[i][X] += pfx;
+    p[i][Y] += pfy;
+    p[i][Z] += pfz;
+  }
+#else
+#pragma omp parallel
+  {
+    const v4df vzero = _mm256_setzero_pd();
+    const v4df vcl2  = _mm256_set1_pd(CL2);
+    const v4df vc24  = _mm256_set1_pd(24.0 * dt);
+    const v4df vc48  = _mm256_set1_pd(48.0 * dt);
+    const v4df vc28  = _mm256_set1_pd(C2 * 8.0 * dt);
+#pragma omp for
+    for (int i = beg; i < pn; i++) {
+      const v4df vqi = _mm256_load_pd((double*)(q + i));
+      v4df vpi = _mm256_load_pd((double*)(p + i));
+      const int np = number_of_partners[i];
+      const int kp = pointer[i];
+      for (int k = 0; k < (np / 4) * 4; k += 4) {
+        const int j_a = sorted_list[kp + k];
+        v4df vqj_a = _mm256_load_pd((double*)(q + j_a));
+        v4df vdq_a = (vqj_a - vqi);
+
+        const int j_b = sorted_list[kp + k + 1];
+        v4df vqj_b = _mm256_load_pd((double*)(q + j_b));
+        v4df vdq_b = (vqj_b - vqi);
+
+        const int j_c = sorted_list[kp + k + 2];
+        v4df vqj_c = _mm256_load_pd((double*)(q + j_c));
+        v4df vdq_c = (vqj_c - vqi);
+
+        const int j_d = sorted_list[kp + k + 3];
+        v4df vqj_d = _mm256_load_pd((double*)(q + j_d));
+        v4df vdq_d = (vqj_d - vqi);
+
+        v4df tmp0 = _mm256_unpacklo_pd(vdq_a, vdq_b);
+        v4df tmp1 = _mm256_unpackhi_pd(vdq_a, vdq_b);
+        v4df tmp2 = _mm256_unpacklo_pd(vdq_c, vdq_d);
+        v4df tmp3 = _mm256_unpackhi_pd(vdq_c, vdq_d);
+
+        v4df vdx = _mm256_permute2f128_pd(tmp0, tmp2, 0x20);
+        v4df vdy = _mm256_permute2f128_pd(tmp1, tmp3, 0x20);
+        v4df vdz = _mm256_permute2f128_pd(tmp0, tmp2, 0x31);
+
+        v4df vr2 = vdx * vdx + vdy * vdy + vdz * vdz;
+        v4df vr6 = vr2 * vr2 * vr2;
+        v4df vdf = (vc24 * vr6 - vc48) / (vr6 * vr6 * vr2) + vc28;
+        v4df mask = vcl2 - vr2;
+        vdf = _mm256_blendv_pd(vdf, vzero, mask);
+
+        v4df vdf_a = _mm256_permute4x64_pd(vdf, 0);
+        v4df vdf_b = _mm256_permute4x64_pd(vdf, 85);
+        v4df vdf_c = _mm256_permute4x64_pd(vdf, 170);
+        v4df vdf_d = _mm256_permute4x64_pd(vdf, 255);
+
+        vpi += vdq_a * vdf_a;
+        vpi += vdq_b * vdf_b;
+        vpi += vdq_c * vdf_c;
+        vpi += vdq_d * vdf_d;
+      }
+      _mm256_store_pd((double*)(p + i), vpi);
+
+      double pfx = 0.0, pfy = 0.0, pfz = 0.0;
+      const double qix = q[i][X], qiy = q[i][Y], qiz = q[i][Z];
+      for (int k = (np / 4) * 4; k < np; k++) {
+        const int j = sorted_list[kp + k];
+        const double dx = q[j][X] - qix;
+        const double dy = q[j][Y] - qiy;
+        const double dz = q[j][Z] - qiz;
+        const double r2 = (dx * dx + dy * dy + dz * dz);
+        const double r6 = r2 * r2 * r2;
+        double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+        if (r2 > CL2) df = 0.0;
+        pfx += df * dx;
+        pfy += df * dy;
+        pfz += df * dz;
+      }
+      p[i][X] += pfx;
+      p[i][Y] += pfy;
+      p[i][Z] += pfz;
+    }
+  }
+#endif
 }
 //----------------------------------------------------------------------
 #ifdef FX10

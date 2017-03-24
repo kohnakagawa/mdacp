@@ -26,17 +26,20 @@ MDManager::MDManager(int &argc, char ** &argv) {
     inputfile = "input.cfg";
   }
   param.LoadFromFile(inputfile.c_str());
-  num_threads = omp_get_max_threads();
-  mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
 
 #ifdef USE_GPU
   int device_cnt = 0;
   checkCudaErrors(cudaGetDeviceCount(&device_cnt));
-  if (device_cnt != num_threads) {
-    mout << "# of NVIDIA GPUs shoud be equal to # of OpenMP Thread(s).\n";
+  const auto outer_threads = omp_get_max_threads();
+  if (outer_threads != device_cnt) {
+    std::cout << "outer OpenMP threads == # of GPUs is not satisfied.\n";
     exit(1);
   }
+  std::cout << "Use_GPU\n";
 #endif
+
+  num_threads = omp_get_max_threads();
+  mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
   int grid_size[D];

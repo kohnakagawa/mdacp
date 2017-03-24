@@ -22,6 +22,13 @@ namespace ForceCalculator {
 #endif
 #ifdef USE_GPU
    void CalculateForceGPU(Variables* vars, MeshList *mesh, SimulationInfo *sinfo);
+   void CalculateForceCPUGPUHybrid(Variables* vars, MeshList *mesh, SimulationInfo *sinfo, const double ratio = 0.75);
+   void CalculateForceAVX2Reactless(const double q[][D], double p[][D],
+                                    const int* sorted_list,
+                                    const int* number_of_partners,
+                                    const int* pointer,
+                                    const double CL2, const double C2,
+                                    const double dt, const int beg, const int pn);
 #endif
    void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo);
    void CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
