@@ -409,16 +409,19 @@ MeshList::RegisterPair(int index1, int index2) {
 #ifdef MESH_SIMD
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
-#elif defined FX10
-  key_particles[number_of_pairs] = i2;
-  partner_particles[number_of_pairs] = i1;
-  number_of_partners[i2]++;
+  number_of_pairs++;
 #else
   key_particles[number_of_pairs] = i1;
   partner_particles[number_of_pairs] = i2;
   number_of_partners[i1]++;
-#endif
   number_of_pairs++;
+#ifdef FX10
+  key_particles[number_of_pairs] = i2;
+  partner_particles[number_of_pairs] = i1;
+  number_of_partners[i2]++;
+  number_of_pairs++;
+#endif
+#endif
 
   assert(number_of_pairs < PAIRLIST_SIZE);
 }
