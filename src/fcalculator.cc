@@ -552,37 +552,6 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
                                              const double dt,
                                              const int beg,
                                              const int pn) {
-#if 1
-#pragma omp parallel for
-  for (int i = beg; i < pn; i++) {
-    const double qx_key = q[i][X];
-    const double qy_key = q[i][Y];
-    const double qz_key = q[i][Z];
-    const int np = number_of_partners[i];
-    double pfx = 0;
-    double pfy = 0;
-    double pfz = 0;
-    const int kp = pointer[i];
-    for (int k = 0; k < np; k++) {
-      const int j = sorted_list[kp + k];
-      double dx = q[j][X] - qx_key;
-      double dy = q[j][Y] - qy_key;
-      double dz = q[j][Z] - qz_key;
-      double r2 = (dx * dx + dy * dy + dz * dz);
-      double r6 = r2 * r2 * r2;
-      double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
-      if (r2 > CL2) {
-        df = 0.0;
-      }
-      pfx += df * dx;
-      pfy += df * dy;
-      pfz += df * dz;
-    }
-    p[i][X] += pfx;
-    p[i][Y] += pfy;
-    p[i][Z] += pfz;
-  }
-#else
 #pragma omp parallel
   {
     const v4df vzero = _mm256_setzero_pd();
@@ -592,25 +561,25 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
     const v4df vc28  = _mm256_set1_pd(C2 * 8.0 * dt);
 #pragma omp for
     for (int i = beg; i < pn; i++) {
-      const v4df vqi = _mm256_load_pd((double*)(q + i));
-      v4df vpi = _mm256_load_pd((double*)(p + i));
+      const v4df vqi = _mm256_loadu_pd((double*)(q + i));
+      v4df vpi = _mm256_loadu_pd((double*)(p + i));
       const int np = number_of_partners[i];
       const int kp = pointer[i];
       for (int k = 0; k < (np / 4) * 4; k += 4) {
         const int j_a = sorted_list[kp + k];
-        v4df vqj_a = _mm256_load_pd((double*)(q + j_a));
+        v4df vqj_a = _mm256_loadu_pd((double*)(q + j_a));
         v4df vdq_a = (vqj_a - vqi);
 
         const int j_b = sorted_list[kp + k + 1];
-        v4df vqj_b = _mm256_load_pd((double*)(q + j_b));
+        v4df vqj_b = _mm256_loadu_pd((double*)(q + j_b));
         v4df vdq_b = (vqj_b - vqi);
 
         const int j_c = sorted_list[kp + k + 2];
-        v4df vqj_c = _mm256_load_pd((double*)(q + j_c));
+        v4df vqj_c = _mm256_loadu_pd((double*)(q + j_c));
         v4df vdq_c = (vqj_c - vqi);
 
         const int j_d = sorted_list[kp + k + 3];
-        v4df vqj_d = _mm256_load_pd((double*)(q + j_d));
+        v4df vqj_d = _mm256_loadu_pd((double*)(q + j_d));
         v4df vdq_d = (vqj_d - vqi);
 
         v4df tmp0 = _mm256_unpacklo_pd(vdq_a, vdq_b);
@@ -638,7 +607,7 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
         vpi += vdq_c * vdf_c;
         vpi += vdq_d * vdf_d;
       }
-      _mm256_store_pd((double*)(p + i), vpi);
+      _mm256_storeu_pd((double*)(p + i), vpi);
 
       double pfx = 0.0, pfy = 0.0, pfz = 0.0;
       const double qix = q[i][X], qiy = q[i][Y], qiz = q[i][Z];
@@ -660,7 +629,6 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
       p[i][Z] += pfz;
     }
   }
-#endif
 }
 //----------------------------------------------------------------------
 #ifdef FX10

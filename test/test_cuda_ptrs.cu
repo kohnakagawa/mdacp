@@ -60,8 +60,8 @@ int main() {
   // partial copy test Host -> Device
   const int beg = 10;
   const int cnt = 100;
-  cptr.Host2Dev(beg, cnt);
-  cptr2d.Host2Dev(beg, cnt);
+  cptr.Host2DevAsync(beg, cnt);
+  cptr2d.Host2DevAsync(beg, cnt);
 
   check_device_value<<<gr_size, tb_size>>>(cptr.GetDevPtr(), beg, cnt, size);
   checkCudaErrors(cudaDeviceSynchronize());
@@ -73,8 +73,10 @@ int main() {
   checkCudaErrors(cudaDeviceSynchronize());
 
   // partial copy test Device -> Host
-  cptr.Dev2Host(0, beg);
-  cptr2d.Dev2Host(0, beg);
+  cptr.Dev2HostAsync(0, beg);
+  cptr2d.Dev2HostAsync(0, beg);
+
+  checkCudaErrors(cudaDeviceSynchronize());
 
   for (int i = 0; i < beg; i++) {
     CHECK_EQ(cptr[i], -1);

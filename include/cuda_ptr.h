@@ -74,15 +74,15 @@ public:
   void Host2Dev(void) {this->Host2Dev(0, size_);}
   void Host2DevAsync(const int beg,
                      const int count,
-                     cudaStream_t* strm = nullptr) {
+                     cudaStream_t strm = 0) {
     checkCudaErrors(cudaMemcpyAsync(dev_ptr_ + beg,
                                     host_ptr_ + beg,
                                     count * sizeof(T),
                                     cudaMemcpyHostToDevice,
-                                    *strm));
+                                    strm));
   }
-  void Host2DevAsync(cudaStream_t* strm = nullptr) {
-    Host2DevAsync(0, size_, *strm);
+  void Host2DevAsync(cudaStream_t strm = 0) {
+    Host2DevAsync(0, size_, strm);
   }
 
   void Dev2Host(const int beg,  const int count) {
@@ -94,15 +94,15 @@ public:
   void Dev2Host(void) {this->Dev2Host(0, size_);}
   void Dev2HostAsync(const int beg,
                      const int count,
-                     cudaStream_t* strm = nullptr) {
+                     cudaStream_t strm = 0) {
     checkCudaErrors(cudaMemcpyAsync(host_ptr_ + beg,
                                     dev_ptr_ + beg,
                                     count * sizeof(T),
                                     cudaMemcpyDeviceToHost,
-                                    *strm));
+                                    strm));
   }
-  void Dev2HostAsync(cudaStream_t* strm = nullptr) {
-    Dev2HostAsync(0, size_, *strm);
+  void Dev2HostAsync(cudaStream_t strm = 0) {
+    Dev2HostAsync(0, size_, strm);
   }
 
   void SetVal(const T val) {

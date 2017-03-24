@@ -46,8 +46,8 @@ ForceCalculator::CalculateForceCPUGPUHybrid(Variables* vars, MeshList *mesh, Sim
   CudaPtr2D<double, N, D>& q = vars->q_buf;
   CudaPtr2D<double, N, D>& p = vars->p_buf;
 
-  q.Host2Dev(0, pn_tot);
-  p.Host2Dev(0, pn_gpu);
+  q.Host2DevAsync(0, pn_tot);
+  p.Host2DevAsync(0, pn_gpu);
 
   // enqueue GPU task
   const auto gr_size = (WARP_SIZE * pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
@@ -66,7 +66,7 @@ ForceCalculator::CalculateForceCPUGPUHybrid(Variables* vars, MeshList *mesh, Sim
                               mesh->GetKeyPointerP(),
                               CL2, C2, dt, pn_gpu, pn);
 
-  p.Dev2Host(0, pn_gpu);
+  p.Dev2HostAsync(0, pn_gpu);
 
   checkCudaErrors(cudaDeviceSynchronize());
 }

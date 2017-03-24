@@ -25,8 +25,8 @@ public:
   int GetDeviceId(void) const {
     return dev_id;
   }
-  double (*q)[D];
-  double (*p)[D];
+  __attribute__((aligned(64))) double (*q)[D];
+  __attribute__((aligned(64))) double (*p)[D];
   CudaPtr2D<double, N, D> q_buf;
   CudaPtr2D<double, N, D> p_buf;
 #else

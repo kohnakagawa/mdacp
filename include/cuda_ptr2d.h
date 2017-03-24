@@ -12,7 +12,7 @@
 //----------------------------------------------------------------------
 template <typename T, std::size_t Nx, std::size_t Ny>
 class CudaPtr2D {
-  T  host_ptr_[Nx][Ny];
+  __attribute__((aligned(64))) T host_ptr_[Nx][Ny];
   T* dev_ptr_ = nullptr;
   thrust::device_ptr<T> thrust_ptr_;
 
@@ -67,7 +67,7 @@ public:
   // NOTE: count means # of x elements.
   void Host2DevAsync(const int beg,
                      const int count,
-                     cudaStream_t* strm = nullptr) {
+                     cudaStream_t strm = 0) {
     const auto offset = beg * Ny;
     const auto count_elem = count * Ny;
     assert((offset + count_elem) < size()); // NOTE: range check
@@ -76,10 +76,10 @@ public:
                                     host_ptr_[0] + offset,
                                     count_elem * sizeof(T),
                                     cudaMemcpyHostToDevice,
-                                    *strm));
+                                    strm));
   }
-  void Host2DevAsync(cudaStream_t* strm = nullptr) {
-    Host2DevAsync(0, Nx, *strm);
+  void Host2DevAsync(cudaStream_t strm = 0) {
+    Host2DevAsync(0, Nx, strm);
   }
 
   // blocking API
@@ -103,7 +103,7 @@ public:
   // NOTE: count means # of x elements
   void Dev2HostAsync(const int beg,
                      const int count,
-                     cudaStream_t* strm = nullptr) {
+                     cudaStream_t strm = 0) {
     const auto offset = beg * Ny;
     const auto count_elem = count * Ny;
     assert((offset + count_elem) < size()); // NOTE: range check
@@ -112,10 +112,10 @@ public:
                                     dev_ptr_ + offset,
                                     count_elem * sizeof(T),
                                     cudaMemcpyDeviceToHost,
-                                    *strm));
+                                    strm));
   }
-  void Dev2HostAsync(cudaStream_t* strm = nullptr) {
-    Dev2HostAsync(0, Nx, *strm);
+  void Dev2HostAsync(cudaStream_t strm = 0) {
+    Dev2HostAsync(0, Nx, strm);
   }
 
   T* GetHostPtr1D() {return host_ptr_[0];}
