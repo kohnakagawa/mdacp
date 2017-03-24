@@ -15,16 +15,17 @@ constexpr int PAIRLIST_SIZE = N * 80;
 #ifdef USE_GPU
 #include <vector_types.h>
 constexpr int THREAD_BLOCK_SIZE = 256;
-template <std::size_t dim>
-struct Vec {typedef double Type;}; // dummy
+template <typename T, std::size_t dim>
+struct Vec {}; // dummy
 // NOTE: D == 2 not supported.
 // template <>
 // struct Vec<2> {typedef double2 Type;};
 template <>
-struct Vec<3> {typedef double3 Type;};
+struct Vec<double, 3> {typedef double3 Type;};
 template <>
-struct Vec<4> {typedef double4 Type;};
-typedef Vec<D>::Type VecCuda;
+struct Vec<double, 4> {typedef double4 Type;};
+typedef Vec<double, D>::Type VecCuda;
+constexpr int WARP_SIZE = 32;
 #endif
 
 const double CUTOFF_LENGTH = 3.0;

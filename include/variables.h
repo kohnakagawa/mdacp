@@ -18,6 +18,13 @@ public:
   Variables(void);
   int type[N];
 #ifdef USE_GPU
+  int dev_id;
+  void SetDeviceId(const int id) {
+    dev_id = id;
+  }
+  int GetDeviceId(void) const {
+    return dev_id;
+  }
   double (*q)[D];
   double (*p)[D];
   CudaPtr2D<double, N, D> q_buf;

@@ -8,6 +8,9 @@
 #ifdef MESH_SIMD
 #include "simd_avx2.h"
 #endif
+#ifdef USE_GPU
+#include <omp.h>
+#endif
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 #ifndef MESH_SIMD
@@ -491,6 +494,7 @@ MeshList::MakeShflTable(void) {
 #ifdef USE_GPU
 void
 MeshList::SendNeighborInfoToGPU(Variables *vars) {
+  checkCudaErrors(cudaSetDevice(vars->GetDeviceId()));
   sorted_list.Host2Dev(0, number_of_pairs);
   const int pn = vars->GetParticleNumber();
   key_pointer.Host2Dev(0, pn);

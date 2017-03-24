@@ -35,7 +35,8 @@ ForceCalculator::CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo 
 //  CalculateForceReactlessSIMD(vars,mesh,sinfo);
   CalculateForceReactlessSIMD_errsafe(vars, mesh, sinfo);
 #elif USE_GPU
-  CalculateForceGPU(vars, mesh, sinfo);
+  CalculateForceReactless(vars,mesh,sinfo);
+  // CalculateForceGPU(vars, mesh, sinfo);
 #elif AVX2
   CalculateForceAVX2(vars, mesh, sinfo);
 #else

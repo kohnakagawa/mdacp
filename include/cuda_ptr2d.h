@@ -16,13 +16,17 @@ class CudaPtr2D {
   T* dev_ptr_ = nullptr;
   thrust::device_ptr<T> thrust_ptr_;
 
-  void Deallocate(void) {
-    checkCudaErrors(cudaFree(dev_ptr_));
-  }
   void Allocate(void) {
+    checkCudaErrors(cudaHostRegister((void**)&host_ptr_[0],
+                                     Nx * Ny * sizeof(T),
+                                     cudaHostRegisterPortable));
     checkCudaErrors(cudaMalloc((void**)&dev_ptr_,
                                Nx * Ny * sizeof(T)));
     thrust_ptr_ = thrust::device_pointer_cast(dev_ptr_);
+  }
+  void Deallocate(void) {
+    checkCudaErrors(cudaHostUnregister((void**)&host_ptr_[0]));
+    checkCudaErrors(cudaFree(dev_ptr_));
   }
 
 public:

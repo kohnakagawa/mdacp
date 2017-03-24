@@ -29,7 +29,7 @@ if (USE_GPU_CUDA)
   cuda_compile(fcalculator_o ./src/fcalculator.cu)
   set(mdacp_srcs ${mdacp_srcs} ${fcalculator_o})
 
-  add_subdirectory(test)
+  # add_subdirectory(test)
 endif()
 
 # for AVX
