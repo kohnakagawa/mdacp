@@ -5,6 +5,7 @@
 #ifdef USE_GPU
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
+#include "device_info.h"
 #endif
 #include "communicator.h"
 #include "mpistream.h"
@@ -32,10 +33,10 @@ MDManager::MDManager(int &argc, char ** &argv) {
   checkCudaErrors(cudaGetDeviceCount(&device_cnt));
   const auto outer_threads = omp_get_max_threads();
   if (outer_threads != device_cnt) {
-    std::cout << "outer OpenMP threads == # of GPUs is not satisfied.\n";
+    mout << "outer OpenMP threads == # of GPUs is not satisfied.\n";
     exit(1);
   }
-  std::cout << "Use_GPU\n";
+  device_query_all();
 #endif
 
   num_threads = omp_get_max_threads();
