@@ -541,6 +541,8 @@ ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, Simula
   }
 }
 //----------------------------------------------------------------------
+#ifdef USE_GPU
+//----------------------------------------------------------------------
 void
 ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
                                              double p[][D],
@@ -630,6 +632,8 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
     }
   }
 }
+//----------------------------------------------------------------------
+#endif
 //----------------------------------------------------------------------
 #ifdef FX10
 //----------------------------------------------------------------------
