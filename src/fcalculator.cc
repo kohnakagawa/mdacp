@@ -556,53 +556,61 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
                                              const int pn) {
 #pragma omp parallel
   {
-    const v4df vzero = _mm256_setzero_pd();
-    const v4df vcl2  = _mm256_set1_pd(CL2);
-    const v4df vc24  = _mm256_set1_pd(24.0 * dt);
-    const v4df vc48  = _mm256_set1_pd(48.0 * dt);
-    const v4df vc28  = _mm256_set1_pd(C2 * 8.0 * dt);
-#pragma omp for
+    const auto vcl2  = _mm256_set1_pd(CL2);
+    const auto vc24  = _mm256_set1_pd(24.0 * dt);
+    const auto vc48  = _mm256_set1_pd(48.0 * dt);
+    const auto vc28  = _mm256_set1_pd(C2 * 8.0 * dt);
+    const auto vzero = _mm256_setzero_pd();
+
+#pragma omp for nowait
     for (int i = beg; i < pn; i++) {
-      const v4df vqi = _mm256_loadu_pd((double*)(q + i));
-      v4df vpi = _mm256_loadu_pd((double*)(p + i));
-      const int np = number_of_partners[i];
-      const int kp = pointer[i];
+      const auto vqi = _mm256_loadu_pd((double*)(q + i));
+      auto vpi = _mm256_loadu_pd((double*)(p + i));
+      const auto np = number_of_partners[i];
+      const auto kp = pointer[i];
       for (int k = 0; k < (np / 4) * 4; k += 4) {
-        const int j_a = sorted_list[kp + k];
-        v4df vqj_a = _mm256_loadu_pd((double*)(q + j_a));
-        v4df vdq_a = (vqj_a - vqi);
+        const auto j_a = sorted_list[kp + k];
+        const auto j_b = sorted_list[kp + k + 1];
+        const auto j_c = sorted_list[kp + k + 2];
+        const auto j_d = sorted_list[kp + k + 3];
 
-        const int j_b = sorted_list[kp + k + 1];
-        v4df vqj_b = _mm256_loadu_pd((double*)(q + j_b));
-        v4df vdq_b = (vqj_b - vqi);
+        auto vqj_a = _mm256_loadu_pd((double*)(q + j_a));
+        auto vdq_a = _mm256_sub_pd(vqj_a, vqi);
 
-        const int j_c = sorted_list[kp + k + 2];
-        v4df vqj_c = _mm256_loadu_pd((double*)(q + j_c));
-        v4df vdq_c = (vqj_c - vqi);
+        auto vqj_b = _mm256_loadu_pd((double*)(q + j_b));
+        auto vdq_b = _mm256_sub_pd(vqj_b, vqi);
 
-        const int j_d = sorted_list[kp + k + 3];
-        v4df vqj_d = _mm256_loadu_pd((double*)(q + j_d));
-        v4df vdq_d = (vqj_d - vqi);
+        auto vqj_c = _mm256_loadu_pd((double*)(q + j_c));
+        auto vdq_c = _mm256_sub_pd(vqj_c, vqi);
 
-        v4df tmp0 = _mm256_unpacklo_pd(vdq_a, vdq_b);
-        v4df tmp1 = _mm256_unpackhi_pd(vdq_a, vdq_b);
-        v4df tmp2 = _mm256_unpacklo_pd(vdq_c, vdq_d);
-        v4df tmp3 = _mm256_unpackhi_pd(vdq_c, vdq_d);
+        auto vqj_d = _mm256_loadu_pd((double*)(q + j_d));
+        auto vdq_d = _mm256_sub_pd(vqj_d, vqi);
 
-        v4df vdx = _mm256_permute2f128_pd(tmp0, tmp2, 0x20);
-        v4df vdy = _mm256_permute2f128_pd(tmp1, tmp3, 0x20);
-        v4df vdz = _mm256_permute2f128_pd(tmp0, tmp2, 0x31);
+        auto tmp0 = _mm256_unpacklo_pd(vdq_a, vdq_b);
+        auto tmp1 = _mm256_unpackhi_pd(vdq_a, vdq_b);
+        auto tmp2 = _mm256_unpacklo_pd(vdq_c, vdq_d);
+        auto tmp3 = _mm256_unpackhi_pd(vdq_c, vdq_d);
 
-        v4df vr2 = vdx * vdx + vdy * vdy + vdz * vdz;
-        v4df vr6 = vr2 * vr2 * vr2;
-        v4df vdf = (vc24 * vr6 - vc48) / (vr6 * vr6 * vr2) + vc28;
-        v4df mask = vcl2 - vr2;
+        auto vdx = _mm256_permute2f128_pd(tmp0, tmp2, 0x20);
+        auto vdy = _mm256_permute2f128_pd(tmp1, tmp3, 0x20);
+        auto vdz = _mm256_permute2f128_pd(tmp0, tmp2, 0x31);
+
+        auto vr2 = _mm256_fmadd_pd(vdz, vdz,
+                                   _mm256_fmadd_pd(vdy, vdy,
+                                                   _mm256_mul_pd(vdx, vdx)));
+        auto vr6 = _mm256_mul_pd(_mm256_mul_pd(vr2, vr2), vr2);
+
+        auto vdf = _mm256_add_pd(_mm256_div_pd(_mm256_fmsub_pd(vc24, vr6, vc48),
+                                               _mm256_mul_pd(_mm256_mul_pd(vr6, vr6),
+                                                             vr2)),
+                                 vc28);
+        auto mask = vcl2 - vr2;
         vdf = _mm256_blendv_pd(vdf, vzero, mask);
 
-        v4df vdf_a = _mm256_permute4x64_pd(vdf, 0);
-        v4df vdf_b = _mm256_permute4x64_pd(vdf, 85);
-        v4df vdf_c = _mm256_permute4x64_pd(vdf, 170);
-        v4df vdf_d = _mm256_permute4x64_pd(vdf, 255);
+        auto vdf_a = _mm256_permute4x64_pd(vdf, 0);
+        auto vdf_b = _mm256_permute4x64_pd(vdf, 85);
+        auto vdf_c = _mm256_permute4x64_pd(vdf, 170);
+        auto vdf_d = _mm256_permute4x64_pd(vdf, 255);
 
         vpi += vdq_a * vdf_a;
         vpi += vdq_b * vdf_b;
@@ -612,15 +620,15 @@ ForceCalculator::CalculateForceAVX2Reactless(const double q[][D],
       _mm256_storeu_pd((double*)(p + i), vpi);
 
       double pfx = 0.0, pfy = 0.0, pfz = 0.0;
-      const double qix = q[i][X], qiy = q[i][Y], qiz = q[i][Z];
+      const auto qix = q[i][X], qiy = q[i][Y], qiz = q[i][Z];
       for (int k = (np / 4) * 4; k < np; k++) {
-        const int j = sorted_list[kp + k];
-        const double dx = q[j][X] - qix;
-        const double dy = q[j][Y] - qiy;
-        const double dz = q[j][Z] - qiz;
-        const double r2 = (dx * dx + dy * dy + dz * dz);
-        const double r6 = r2 * r2 * r2;
-        double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+        const auto j = sorted_list[kp + k];
+        const auto dx = q[j][X] - qix;
+        const auto dy = q[j][Y] - qiy;
+        const auto dz = q[j][Z] - qiz;
+        const auto r2 = (dx * dx + dy * dy + dz * dz);
+        const auto r6 = r2 * r2 * r2;
+        auto df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
         if (r2 > CL2) df = 0.0;
         pfx += df * dx;
         pfy += df * dy;
