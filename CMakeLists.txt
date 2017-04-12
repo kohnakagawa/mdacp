@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
+set(CMAKE_VERBOSE_MAKEFILE 1)
 
 set(CMAKE_BUILD_TYPE Release)
 
@@ -29,7 +30,10 @@ if (USE_GPU_CUDA)
   cuda_compile(fcalculator_o ./src/fcalculator.cu)
   set(mdacp_srcs ${mdacp_srcs} ${fcalculator_o})
 
-  add_subdirectory(test)
+  add_subdirectory(unit_test)
+else ()
+  file(GLOB dev_info_cc_src ./src/device_info.cc)
+  list(REMOVE_ITEM mdacp_srcs ${dev_info_cc_src})
 endif()
 
 # for AVX

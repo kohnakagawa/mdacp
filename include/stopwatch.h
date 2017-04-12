@@ -18,7 +18,7 @@ public:
   };
   ~StopWatch(void) {
     //if (id == 0)SaveToFile();
-    //SaveToFile();
+    SaveToFile();
   }
   void Start(void) {
     current_time = Communicator::GetTime();
@@ -32,7 +32,8 @@ public:
     char filename[256];
     sprintf(filename, "%s%05d.dat", basename, id);
     std::ofstream ofs(filename);
-    ofs.write((const char *)&data[0], sizeof(double)*data.size());
+    // ofs.write((const char *)&data[0], sizeof(double)*data.size());
+    for (auto d : data) ofs << d << "\n";
   };
 };
 //----------------------------------------------------------------------
