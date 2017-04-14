@@ -90,9 +90,6 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
     sorted_list[index] = j;
     key_pointer2[i] ++;
   }
-#ifdef USE_GPU
-  SendNeighborInfoToGPU(vars);
-#endif
   number_of_constructions++;
 }
 //----------------------------------------------------------------------
@@ -342,7 +339,6 @@ MeshList::ShowSortedList(Variables *vars) {
 #ifdef USE_GPU
 void
 MeshList::SendNeighborInfoToGPU(Variables *vars) {
-  checkCudaErrors(cudaSetDevice(vars->GetDeviceId()));
   sorted_list.Host2Dev(0, number_of_pairs);
   const int pn = vars->GetParticleNumber();
   key_pointer.Host2Dev(0, pn);

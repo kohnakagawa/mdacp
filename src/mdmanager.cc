@@ -28,19 +28,27 @@ MDManager::MDManager(int &argc, char ** &argv) {
   }
   param.LoadFromFile(inputfile.c_str());
 
-#ifdef USE_GPU
-  int device_cnt = 0;
-  checkCudaErrors(cudaGetDeviceCount(&device_cnt));
-  const auto outer_threads = omp_get_max_threads();
-  if (outer_threads != device_cnt) {
-    mout << "outer OpenMP threads == # of GPUs is not satisfied.\n";
-    exit(1);
-  }
-  device_query_all();
-#endif
-
   num_threads = omp_get_max_threads();
   mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
+
+#ifdef USE_GPU
+  device_query_all(); // show gpu info
+
+  strms.resize(num_threads);
+  for (auto& strm : strms) {
+    checkCudaErrors(cudaStreamCreate(&strm));
+  }
+
+  checkCudaErrors(cudaSetDevice(rank % NUM_GPUS_PER_NODE));
+
+  int dev_cnt = 0;
+  checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
+  if (dev_cnt != NUM_GPUS_PER_NODE) {
+    mout << "Error:\n";
+    mout << "# of GPUs per node should be equal to NUM_GPUS_PER_NODE\n";
+    exit(1);
+  }
+#endif
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
   int grid_size[D];
@@ -68,6 +76,13 @@ MDManager::~MDManager(void) {
   for (unsigned int i = 0; i < mdv.size(); i++) {
     delete mdv[i];
   }
+
+#ifdef USE_GPU
+  for (auto& strm : strms) {
+    checkCudaErrors(cudaStreamDestroy(strm));
+  }
+#endif
+
   delete pinfo;
   delete sinfo;
   MPI_Finalize();
@@ -167,11 +182,31 @@ MDManager::Calculate(void) {
 //----------------------------------------------------------------------
 void
 MDManager::CalculateForce(void) {
-  #pragma omp parallel for schedule(static)
+#ifdef USE_GPU
+  static std::vector<int> pn_gpu(num_threads);
+
+  // force calculation
+  for (int i = 0; i < num_threads; i++) { // GPU
+    pn_gpu[i] = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
+    mdv[i]->CalculateForceGPU(pn_gpu[i], strms[i]);
+  }
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) { // CPU
+    mdv[i]->CalculateForceCPU(pn_gpu[i]);
+  }
+  checkCudaErrors(cudaDeviceSynchronize());
+
+#pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->UpdatePositionHalf();
+  }
+#else
+#pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->CalculateForce();
     mdv[i]->UpdatePositionHalf();
   }
+#endif // end of USE_GPU
 }
 //----------------------------------------------------------------------
 void
@@ -290,6 +325,11 @@ MDManager::MakePairList(void) {
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->MakePairList();
   }
+#ifdef USE_GPU
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->SendNeighborInfoToGPU();
+  }
+#endif
 }
 //----------------------------------------------------------------------
 void

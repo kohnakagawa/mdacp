@@ -2,6 +2,9 @@
 #ifndef mdmanager_h
 #define mdmanager_h
 #include <vector>
+#ifdef USE_GPU
+#include <cuda_runtime.h>
+#endif
 #include "mdunit.h"
 #include "parainfo.h"
 #include "simulationinfo.h"
@@ -28,6 +31,9 @@ private:
   int GetLocalID(int id);
   bool IsPairListExpired(void);
   double s_time;
+#ifdef USE_GPU
+  std::vector<cudaStream_t> strms;
+#endif
 public:
   MDManager(int &argc, char** &argv);
   ~MDManager(void);

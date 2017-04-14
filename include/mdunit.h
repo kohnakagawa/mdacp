@@ -3,6 +3,9 @@
 #define mdunit_h
 #include <stdio.h>
 #include <vector>
+#ifndef USE_GPU
+#include <cuda_runtime.h>
+#endif
 #include "mdconfig.h"
 #include "parainfo.h"
 #include "simulationinfo.h"
@@ -54,6 +57,16 @@ public:
   void HeatbathZeta(double t) {ForceCalculator::HeatbathZeta(vars, t, sinfo);};
   void HeatbathMomenta(void) {ForceCalculator::HeatbathMomenta(vars, sinfo);};
   void Langevin(void) {ForceCalculator::Langevin(vars, sinfo);};
+
+#ifdef USE_GPU
+  void CalculateForceGPU(const int pn_gpu, cudaStream_t strm) {
+    ForceCalculator::CalculateForceGPU(vars, mesh, sinfo, pn_gpu, strm);
+  };
+  void CalculateForceCPU(const int pn_gpu) {
+    ForceCalculator::CalculateForceAVX2Reactless(vars, mesh, sinfo, pn_gpu);
+  };
+  void SendNeighborInfoToGPU(void) {mesh->SendNeighborInfoToGPU(vars);};
+#endif
 
   void MakeBufferForSendingParticle(const int dir);
   void FindBorderParticles(const int dir);
