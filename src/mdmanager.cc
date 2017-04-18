@@ -221,7 +221,7 @@ MDManager::CalculateForce(void) {
   if (profile_cnt == 100) {
     const auto gpu_time = swForce_gpu.GetBackData();
     const auto cpu_time = swForce_cpu.GetBackData();
-    mout << "cpu/gpu imbalance " << cpu_time / gpu_time << "\n";
+    mout << "cpu_time/gpu_time = " << cpu_time / gpu_time << "\n";
     profile_cnt = 0;
   }
   profile_cnt++;
