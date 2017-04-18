@@ -191,24 +191,48 @@ MDManager::Calculate(void) {
 void
 MDManager::CalculateForce(void) {
 #ifdef USE_GPU
-  static std::vector<int> pn_gpu(num_threads);
+  static StopWatch swForce_cpu(GetRank(), "force_cpu");
+  static StopWatchCuda swForce_gpu(GetRank(), "force_gpu");
 
-  // force calculation
+  static std::vector<int> pn_gpu(num_threads);
+  static int profile_cnt = 0;
+
+  // gpu force calc
+  swForce_gpu.Start();
   for (int i = 0; i < num_threads; i++) { // GPU
     pn_gpu[i] = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
     mdv[i]->CalculateForceGPU(pn_gpu[i], strms[i]);
   }
+  swForce_gpu.Stop();
+
+  // cpu force calc
+  swForce_cpu.Start();
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) { // CPU
     mdv[i]->CalculateForceCPU(pn_gpu[i]);
   }
-  checkCudaErrors(cudaDeviceSynchronize());
+  swForce_cpu.Stop();
 
+  // sync
+  checkCudaErrors(cudaDeviceSynchronize());
+  swForce_gpu.Record();
+
+  // show load imbalance
+  if (profile_cnt == 100) {
+    const auto gpu_time = swForce_gpu.GetBackData();
+    const auto cpu_time = swForce_cpu.GetBackData();
+    mout << "cpu/gpu imbalance " << cpu_time / gpu_time << "\n";
+    profile_cnt = 0;
+  }
+  profile_cnt++;
+
+  // position update
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->UpdatePositionHalf();
   }
 #else
+
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->CalculateForce();
