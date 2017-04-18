@@ -34,12 +34,13 @@ MDManager::MDManager(int &argc, char ** &argv) {
 #ifdef USE_GPU
   device_query_all(); // show gpu info
 
+  const auto gpu_id = rank % NUM_GPUS_PER_NODE;
+  checkCudaErrors(cudaSetDevice(gpu_id));
+
   strms.resize(num_threads);
   for (auto& strm : strms) {
     checkCudaErrors(cudaStreamCreate(&strm));
   }
-
-  checkCudaErrors(cudaSetDevice(rank % NUM_GPUS_PER_NODE));
 
   int dev_cnt = 0;
   checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
@@ -59,6 +60,9 @@ MDManager::MDManager(int &argc, char ** &argv) {
   std::vector <MDUnit *> v;
   #pragma omp parallel shared(v) private(tid,mdp)
   {
+#ifdef USE_GPU
+    checkCudaErrors(cudaSetDevice(gpu_id));
+#endif
     tid = omp_get_thread_num();
     mdp = new MDUnit(tid + rank * num_threads, sinfo, pinfo);
     #pragma omp critical
@@ -70,6 +74,10 @@ MDManager::MDManager(int &argc, char ** &argv) {
     mdv[local_id] = v[i];
   }
   s_time = 0.0;
+
+#ifdef USE_GPU
+  checkCudaErrors(cudaSetDevice(gpu_id));
+#endif
 }
 //----------------------------------------------------------------------
 MDManager::~MDManager(void) {
@@ -190,18 +198,18 @@ MDManager::CalculateForce(void) {
     pn_gpu[i] = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
     mdv[i]->CalculateForceGPU(pn_gpu[i], strms[i]);
   }
-#pragma omp parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) { // CPU
     mdv[i]->CalculateForceCPU(pn_gpu[i]);
   }
   checkCudaErrors(cudaDeviceSynchronize());
 
-#pragma omp parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->UpdatePositionHalf();
   }
 #else
-#pragma omp parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->CalculateForce();
     mdv[i]->UpdatePositionHalf();

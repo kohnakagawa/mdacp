@@ -3,7 +3,7 @@
 #define mdunit_h
 #include <stdio.h>
 #include <vector>
-#ifndef USE_GPU
+#ifdef USE_GPU
 #include <cuda_runtime.h>
 #endif
 #include "mdconfig.h"

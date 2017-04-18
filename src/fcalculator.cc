@@ -550,21 +550,19 @@ ForceCalculator::CalculateForceAVX2Reactless(Variables *vars,
   double (*q)[D] = vars->q;
   double (*p)[D] = vars->p;
   const auto pn = vars->GetParticleNumber();
-  const int* number_of_partners = mesh->GetNumberOfPartners();
   const int* sorted_list = mesh->GetSortedList();
-  const int* pointer = mesh->GetKeyPointerP();
 
+  const auto vzero = _mm256_setzero_pd();
   const auto vcl2  = _mm256_set1_pd(CL2);
   const auto vc24  = _mm256_set1_pd(24.0 * dt);
   const auto vc48  = _mm256_set1_pd(48.0 * dt);
-  const auto vc28  = _mm256_set1_pd(C2 * 8.0 * dt);
-  const auto vzero = _mm256_setzero_pd();
+  const auto vc2  = _mm256_set1_pd(C2 * dt);
 
   for (int i = beg; i < pn; i++) {
+    const auto np = mesh->GetPartnerNumber(i);
     const auto vqi = _mm256_loadu_pd((double*)(q + i));
     auto vpi = _mm256_loadu_pd((double*)(p + i));
-    const auto np = number_of_partners[i];
-    const auto kp = pointer[i];
+    const auto kp = mesh->GetKeyPointer(i);
     for (int k = 0; k < (np / 4) * 4; k += 4) {
       const auto j_a = sorted_list[kp + k];
       const auto j_b = sorted_list[kp + k + 1];
@@ -600,7 +598,7 @@ ForceCalculator::CalculateForceAVX2Reactless(Variables *vars,
       auto vdf = _mm256_add_pd(_mm256_div_pd(_mm256_fmsub_pd(vc24, vr6, vc48),
                                              _mm256_mul_pd(_mm256_mul_pd(vr6, vr6),
                                                            vr2)),
-                               vc28);
+                               vc2);
       auto mask = vcl2 - vr2;
       vdf = _mm256_blendv_pd(vdf, vzero, mask);
 
@@ -625,7 +623,7 @@ ForceCalculator::CalculateForceAVX2Reactless(Variables *vars,
       const auto dz = q[j][Z] - qiz;
       const auto r2 = (dx * dx + dy * dy + dz * dz);
       const auto r6 = r2 * r2 * r2;
-      auto df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+      auto df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2) * dt;
       if (r2 > CL2) df = 0.0;
       pfx += df * dx;
       pfy += df * dy;
