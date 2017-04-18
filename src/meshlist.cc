@@ -280,40 +280,42 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
   const int ln = v.size();
 
 #ifdef MESH_SIMD
-  const v4di vpn = _mm256_set1_epi64x(pn);
-  const v4df vsl2 = _mm256_set1_pd(S2);
+  const auto vpn = _mm256_set1_epi64x(pn);
+  const auto vsl2 = _mm256_set1_pd(S2);
   for (int i = 0; i < (in / 4) * 4 ; i += 4) {
-    const int i_a = v[i    ];
-    const int i_b = v[i + 1];
-    const int i_c = v[i + 2];
-    const int i_d = v[i + 3];
+    const auto i_a = v[i    ];
+    const auto i_b = v[i + 1];
+    const auto i_c = v[i + 2];
+    const auto i_d = v[i + 3];
 
-    v4df vqia = _mm256_load_pd(q[i_a]);
-    v4df vqib = _mm256_load_pd(q[i_b]);
-    v4df vqic = _mm256_load_pd(q[i_c]);
-    v4df vqid = _mm256_load_pd(q[i_d]);
+    const auto vqia = _mm256_loadu_pd(q[i_a]);
+    const auto vqib = _mm256_loadu_pd(q[i_b]);
+    const auto vqic = _mm256_loadu_pd(q[i_c]);
+    const auto vqid = _mm256_loadu_pd(q[i_d]);
 
-    v4di vi_id = _mm256_set_epi64x(i_d, i_c, i_b, i_a);
+    auto vi_id = _mm256_set_epi64x(i_d, i_c, i_b, i_a);
 
     v4df vqix, vqiy, vqiz;
     transpose_4x4(vqia, vqib, vqic, vqid, vqix, vqiy, vqiz);
 
     const int i_less_than_pn = _mm256_movemask_pd(_mm256_castsi256_pd(_mm256_cmpgt_epi64(vpn, vi_id)));
     for (int k = i + 4; k < ln; k++) {
-      const int j = v[k];
+      const auto j = v[k];
       const int j_less_than_pn = (j < pn) ? 0xf : 0;
 
-      v4df vqjx = _mm256_set1_pd(q[j][X]);
-      v4df vqjy = _mm256_set1_pd(q[j][Y]);
-      v4df vqjz = _mm256_set1_pd(q[j][Z]);
+      auto vqjx = _mm256_set1_pd(q[j][X]);
+      auto vqjy = _mm256_set1_pd(q[j][Y]);
+      auto vqjz = _mm256_set1_pd(q[j][Z]);
 
-      v4df dvx = vqjx - vqix;
-      v4df dvy = vqjy - vqiy;
-      v4df dvz = vqjz - vqiz;
+      auto dvx = _mm256_sub_pd(vqjx, vqix);
+      auto dvy = _mm256_sub_pd(vqjy, vqiy);
+      auto dvz = _mm256_sub_pd(vqjz, vqiz);
 
-      v4df dvr2 = dvx * dvx + dvy * dvy + dvz * dvz;
+      auto dvr2 = _mm256_fmadd_pd(dvx, dvx,
+                                  _mm256_fmadd_pd(dvy, dvy,
+                                                  _mm256_mul_pd(dvz, dvz))) ;
 
-      v4df dvr2_flag = _mm256_cmp_pd(dvr2, vsl2, _CMP_LE_OS);
+      auto dvr2_flag = _mm256_cmp_pd(dvr2, vsl2, _CMP_LE_OS);
       int less_than_sl2 = _mm256_movemask_pd(dvr2_flag);
 
       const int shfl_key = (i_less_than_pn | j_less_than_pn) & less_than_sl2;
@@ -321,18 +323,23 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
 
       const int incr = _popcnt32(shfl_key);
 
-      v4di vj_id = _mm256_set1_epi64x(j);
-      v8si vkey_id = _mm256_min_epi32(vi_id, vj_id);
-      v8si vpart_id = _mm256_max_epi32(vi_id, vj_id);
+      auto vj_id = _mm256_set1_epi64x(j);
+      auto vkey_id = _mm256_min_epi32(vi_id, vj_id);
+      auto vpart_id = _mm256_max_epi32(vi_id, vj_id);
       vpart_id = _mm256_slli_si256(vpart_id, 0x4);
-      v8si vpart_key_id = _mm256_or_si256(vkey_id, vpart_id);
+      auto vpart_key_id = _mm256_or_si256(vkey_id, vpart_id);
 
-      v8si idx = _mm256_load_si256(reinterpret_cast<const __m256i*>(shfl_table[shfl_key]));
+      auto idx = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(shfl_table[shfl_key]));
       vpart_key_id = _mm256_permutevar8x32_epi32(vpart_key_id, idx);
       _mm256_storeu_si256(reinterpret_cast<__m256i*>(key_partner_pairs[number_of_pairs]),
                           vpart_key_id);
-
       number_of_pairs += incr;
+#ifdef USE_GPU
+      vpart_key_id = _mm256_shuffle_epi32(vpart_key_id, 0xb1);
+      _mm256_storeu_si256(reinterpret_cast<__m256i*>(key_partner_pairs[number_of_pairs]),
+                          vpart_key_id);
+      number_of_pairs += incr;
+#endif
     }
 
     // remaining pairs
@@ -410,7 +417,12 @@ MeshList::RegisterPair(int index1, int index2) {
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
   number_of_pairs++;
-#else
+#ifdef USE_GPU
+  key_partner_pairs[number_of_pairs][KEY] = i2;
+  key_partner_pairs[number_of_pairs][PARTNER] = i1;
+  number_of_pairs++;
+#endif // end of USE_GPU
+#else // else MESH_SIMD
   key_particles[number_of_pairs] = i1;
   partner_particles[number_of_pairs] = i2;
   number_of_partners[i1]++;
@@ -420,8 +432,8 @@ MeshList::RegisterPair(int index1, int index2) {
   partner_particles[number_of_pairs] = i1;
   number_of_partners[i2]++;
   number_of_pairs++;
-#endif
-#endif
+#endif // end of FX10
+#endif // end of MESH_SIMD
 
   assert(number_of_pairs < PAIRLIST_SIZE);
 }
