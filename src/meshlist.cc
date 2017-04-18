@@ -339,10 +339,13 @@ MeshList::ShowSortedList(Variables *vars) {
 #ifdef USE_GPU
 void
 MeshList::SendNeighborInfoToGPU(Variables *vars) {
-  sorted_list.Host2Dev(0, number_of_pairs);
-  const int pn = vars->GetParticleNumber();
-  key_pointer.Host2Dev(0, pn);
-  number_of_partners.Host2Dev(0, pn);
+  const int pn_gpu = int(vars->GetParticleNumber() * WORK_BALANCE);
+  key_pointer.Host2Dev(0, pn_gpu);
+  number_of_partners.Host2Dev(0, pn_gpu);
+  const int number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
+                                                  number_of_partners.GetHostPtr() + pn_gpu,
+                                                  0);
+  sorted_list.Host2Dev(0, number_of_pairs_gpu);
 }
 #endif
 //----------------------------------------------------------------------
