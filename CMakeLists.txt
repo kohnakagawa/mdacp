@@ -38,7 +38,7 @@ endif()
 
 # for AVX
 add_definitions(-DAVX2)
-# add_definitions(-DMESH_SIMD)
+add_definitions(-DMESH_SIMD)
 
 # enable C++11, avx intrinsics, and OpenMP
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11 -march=native -fopenmp")

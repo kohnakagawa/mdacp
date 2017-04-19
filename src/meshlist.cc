@@ -2,6 +2,7 @@
 #include <iostream>
 #include <assert.h>
 #include <fstream>
+#include <algorithm>
 #include "meshlist.h"
 #include "mpistream.h"
 #ifdef MESH_SIMD

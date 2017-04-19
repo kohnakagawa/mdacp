@@ -76,12 +76,12 @@ struct TimerGPUImpl {
 //----------------------------------------------------------------------
 template <class Impl>
 class Timer {
-private:
+ private:
   typename Impl::Dtype start, stop;
   const char *basename;
   int id;
   std::vector<double> data;
-public:
+ public:
   Timer(int rank, const char* bname) {
     basename = bname;
     id = rank;
