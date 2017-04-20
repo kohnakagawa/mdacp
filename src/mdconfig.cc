@@ -3,7 +3,7 @@
 #include "mdconfig.h"
 
 //----------------------------------------------------------------------
-const char *MDACP_VERSION = "MDACP Ver 2.20";
+const char *MDACP_VERSION = "MDACP Ver 2.3";
 //----------------------------------------------------------------------
 const char *Direction::name_str[MAX_DIR] = {"left", "right", "back", "forward", "down", "up"};
 //----------------------------------------------------------------------
