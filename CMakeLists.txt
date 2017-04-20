@@ -9,7 +9,6 @@ include_directories(./include)
 
 # for AVX
 add_definitions(-DAVX2)
-add_definitions(-DMESH_SIMD)
 
 if (USE_GPU_CUDA)
   find_package(CUDA REQUIRED)

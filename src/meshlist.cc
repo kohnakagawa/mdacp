@@ -5,15 +5,11 @@
 #include <algorithm>
 #include "meshlist.h"
 #include "mpistream.h"
-#ifdef MESH_SIMD
+#ifdef AVX2
 #include "simd_avx2.h"
 #endif
 //----------------------------------------------------------------------
 MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
-#ifndef MESH_SIMD
-  key_particles = new int[PAIRLIST_SIZE];
-  partner_particles = new int[PAIRLIST_SIZE];
-#endif
   number_of_constructions = 0;
   sort_interval = 10;
 
@@ -22,7 +18,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   mesh_particle_number = NULL;
   ChangeScale(sinfo, r);
 
-#ifdef MESH_SIMD
+#ifdef AVX2
   MakeShflTable();
 #endif
 
@@ -34,15 +30,9 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 }
 //----------------------------------------------------------------------
 MeshList::~MeshList(void) {
-
   if (NULL != mesh_index) delete [] mesh_index;
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
-
-#ifndef MESH_SIMD
-  delete [] key_particles;
-  delete [] partner_particles;
-#endif
 }
 //----------------------------------------------------------------------
 void
@@ -82,8 +72,8 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
   MakeListMesh(vars, sinfo, myrect);
   //MakeListBruteforce(vars,sinfo,myrect);
 
-#ifdef MESH_SIMD
   const int s = number_of_pairs;
+#ifdef AVX2
   for (int k = 0; k < s; k++) {
     const int i = key_partner_pairs[k][KEY];
     number_of_partners[i]++;
@@ -101,17 +91,9 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
     key_pointer2[i] = 0;
   }
 
-#ifndef MESH_SIMD
-  const int s = number_of_pairs;
-#endif
   for (int k = 0; k < s; k++) {
-#ifdef MESH_SIMD
     int i = key_partner_pairs[k][KEY];
     int j = key_partner_pairs[k][PARTNER];
-#else
-    int i = key_particles[k];
-    int j = partner_particles[k];
-#endif
     int index = key_pointer[i] + key_pointer2[i];
     sorted_list[index] = j;
     key_pointer2[i] ++;
@@ -284,7 +266,7 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
   const int in = mesh_particle_number[index];
   const int ln = v.size();
 
-#ifdef MESH_SIMD
+#ifdef AVX2
   const auto vpn = _mm256_set1_epi64x(pn);
   const auto vsl2 = _mm256_set1_pd(S2);
   for (int i = 0; i < (in / 4) * 4 ; i += 4) {
@@ -418,7 +400,7 @@ MeshList::RegisterPair(int index1, int index2) {
     i2 = index1;
   }
 
-#ifdef MESH_SIMD
+#ifdef AVX2
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
   number_of_pairs++;
@@ -427,18 +409,18 @@ MeshList::RegisterPair(int index1, int index2) {
   key_partner_pairs[number_of_pairs][PARTNER] = i1;
   number_of_pairs++;
 #endif // end of USE_GPU
-#else // else MESH_SIMD
-  key_particles[number_of_pairs] = i1;
-  partner_particles[number_of_pairs] = i2;
+#else // else AVX2
+  key_partner_pairs[number_of_pairs][KEY] = i1;
+  key_partner_pairs[number_of_pairs][PARTNER] = i2;
   number_of_partners[i1]++;
   number_of_pairs++;
 #if defined FX10 || defined USE_GPU
-  key_particles[number_of_pairs] = i2;
-  partner_particles[number_of_pairs] = i1;
+  key_partner_pairs[number_of_pairs][KEY] = i2;
+  key_partner_pairs[number_of_pairs][PARTNER] = i1;
   number_of_partners[i2]++;
   number_of_pairs++;
 #endif // end of FX10 || USE_GPU
-#endif // end of MESH_SIMD
+#endif // end of AVX2
 
   assert(number_of_pairs < PAIRLIST_SIZE);
 }
@@ -459,12 +441,8 @@ MeshList::RegisterInteractPair(const double q[][D],
 void
 MeshList::ShowPairs(void) {
   for (int i = 0; i < number_of_pairs; i++) {
-#ifdef MESH_SIMD
     printf("(%05d,%05d)\n",
            key_partner_pairs[i][KEY], key_partner_pairs[i][PARTNER]);
-#else
-    printf("(%05d,%05d)\n", key_particles[i], partner_particles[i]);
-#endif
   }
 }
 //----------------------------------------------------------------------
@@ -481,7 +459,7 @@ MeshList::ShowSortedList(Variables *vars) {
   }
 }
 //----------------------------------------------------------------------
-#ifdef MESH_SIMD
+#ifdef AVX2
 void
 MeshList::MakeShflTable() {
   std::fill(shfl_table[0], shfl_table[16], 0);
