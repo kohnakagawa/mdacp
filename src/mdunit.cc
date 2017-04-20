@@ -7,6 +7,9 @@
 //----------------------------------------------------------------------
 MDUnit::MDUnit(int id_, SimulationInfo *si, ParaInfo *pi):
   id(id_) {
+#ifdef USE_GPU
+  #pragma omp critical
+#endif
   vars = new Variables();
   plist = new PairList();
   sinfo = si;
@@ -23,6 +26,10 @@ MDUnit::MDUnit(int id_, SimulationInfo *si, ParaInfo *pi):
     e[d] = s[d] + ul;
   }
   myrect = MDRect(s, e);
+
+#ifdef USE_GPU
+#pragma omp critical
+#endif
   mesh = new MeshList(sinfo, myrect);
 };
 //----------------------------------------------------------------------
