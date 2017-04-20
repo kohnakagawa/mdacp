@@ -27,7 +27,7 @@ struct Vec<double, 4> {typedef double4 Type;};
 typedef Vec<double, D>::Type VecCuda;
 constexpr int WARP_SIZE = 32;
 constexpr int NUM_GPUS_PER_NODE = 2; // for sekirei
-constexpr double WORK_BALANCE = 0.82;
+constexpr double WORK_BALANCE = 0.7;
 #endif
 
 const double CUTOFF_LENGTH = 3.0;
