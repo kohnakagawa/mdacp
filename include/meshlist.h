@@ -30,20 +30,19 @@ private:
   int * mesh_index2;
   int * mesh_particle_number;
   int sortbuf[N];
+
 #ifdef USE_GPU
   CudaPtr<int> key_pointer;
-#else
-  int key_pointer[N];
-#endif
-  int key_pointer2[N];
-  int number_of_mesh;
-#ifdef USE_GPU
   CudaPtr<int> number_of_partners;
   CudaPtr<int> sorted_list;
 #else
+  int key_pointer[N];
   int number_of_partners[N];
   int sorted_list[PAIRLIST_SIZE];
 #endif
+  int key_pointer2[N];
+  int number_of_mesh;
+
   int number_of_constructions;
   inline void RegisterPair(int index1, int index2);
   inline void RegisterInteractPair(const double q[][D], int index1, int index2, const double S2);

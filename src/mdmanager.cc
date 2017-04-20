@@ -45,8 +45,8 @@ MDManager::MDManager(int &argc, char ** &argv) {
   int dev_cnt = 0;
   checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
   if (dev_cnt != NUM_GPUS_PER_NODE) {
-    mout << "Error:\n";
-    mout << "# of GPUs per node should be equal to NUM_GPUS_PER_NODE\n";
+    mout << "Error:" << std::endl;
+    mout << "# of GPUs per node should be equal to NUM_GPUS_PER_NODE" << std::endl;
     exit(1);
   }
 #endif

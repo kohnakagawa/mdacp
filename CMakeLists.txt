@@ -7,6 +7,10 @@ file(GLOB mdacp_cpp_srcs ./src/*.cc)
 set(mdacp_srcs ${mdacp_cpp_srcs})
 include_directories(./include)
 
+# for AVX
+add_definitions(-DAVX2)
+add_definitions(-DMESH_SIMD)
+
 if (USE_GPU_CUDA)
   find_package(CUDA REQUIRED)
   add_definitions(-DUSE_GPU)
@@ -35,10 +39,6 @@ else ()
   file(GLOB dev_info_cc_src ./src/device_info.cc)
   list(REMOVE_ITEM mdacp_srcs ${dev_info_cc_src})
 endif()
-
-# for AVX
-add_definitions(-DAVX2)
-add_definitions(-DMESH_SIMD)
 
 # enable C++11, avx intrinsics, and OpenMP
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-std=c++11 -march=native -fopenmp")
