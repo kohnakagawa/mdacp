@@ -88,8 +88,8 @@ class Timer {
     Impl::Initialize(start, stop);
   };
   ~Timer(void) {
-    //if (id == 0)SaveToFile();
-    SaveToFile();
+    if (id == 0)SaveToFile();
+    // SaveToFile();
     Impl::Finalize(start, stop);
   }
   void Start(void) {
