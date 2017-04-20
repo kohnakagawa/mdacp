@@ -1,11 +1,11 @@
 # MDACP (Molecular Dynamics code for Avogadro Challenge Project)
 
-## Summary:
+## Summary
 MDACP (Molecular Dynamics code for Avogadro Challenge Project) is an
 efficient implementations of classical molecular dynamics (MD) method
 for the Lennard-Jones particle systems.
 
-## Usage:
+## Usage
 ### CPU only
 
 ```sh
@@ -26,18 +26,17 @@ $ make
 
 The latest information of MDACP is available at
 http://mdacp.sourceforge.net/
-------------------------------------------------------------------------
-List of Developers:
 
-*Hiroshi Watanabe <hwatanabe@issp.u-tokyo.ac.jp>
+## List of Developers:
+- *Hiroshi Watanabe <hwatanabe@issp.u-tokyo.ac.jp>
 Institute for Solid State Physics, University of Tokyo
 (Corresponding Author)
 
-Masaru Suzuki
+- Masaru Suzuki
 Department of Applied Quantum Physics and Nuclear Engineering,
 Faculty of Engineering, Kyushu University
 
-Nobuyasu Ito
+- Nobuyasu Ito
 Department of Applied Physics, School of Engineering,
 The University of Tokyo
-------------------------------------------------------------------------
+
