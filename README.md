@@ -28,15 +28,12 @@ The latest information of MDACP is available at
 http://mdacp.sourceforge.net/
 
 ## List of Developers
-* *Hiroshi Watanabe <hwatanabe@issp.u-tokyo.ac.jp>
-Institute for Solid State Physics, University of Tokyo
-(Corresponding Author)
+- *Hiroshi Watanabe <hwatanabe@issp.u-tokyo.ac.jp>
+    - Institute for Solid State Physics, University of Tokyo (Corresponding Author)
 
-* Masaru Suzuki
-Department of Applied Quantum Physics and Nuclear Engineering,
-Faculty of Engineering, Kyushu University
+- Masaru Suzuki
+    - Department of Applied Quantum Physics and Nuclear Engineering, Faculty of Engineering, Kyushu University
 
-* Nobuyasu Ito
-Department of Applied Physics, School of Engineering,
-The University of Tokyo
+- Nobuyasu Ito
+    - Department of Applied Physics, School of Engineering, The University of Tokyo
 
