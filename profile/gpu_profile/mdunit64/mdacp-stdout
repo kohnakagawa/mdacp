@@ -1,0 +1,74 @@
+mpijob CMD    : mpirun -f /tmp/mpiexec.params.m002903.17130
+mpijob PARAMS : -d /home/m0029/m002903/mdacp-2.3/run_cfg r5i3n13 2, r5i3n14
+        2, r5i3n15 2, r5i3n16 2 omplace -nt 8 -c 0-7,12-19 "./mdacp"
+        "input_gpu.cfg"
+
+SGI MPT Placement option
+--------------------------
+omplace -nt 8 -c 0-7,12-19
+
+Node   MPI
+------------
+r5i3n13 2
+r5i3n14 2
+r5i3n15 2
+r5i3n16 2
+
+# MDACP Ver 2.3
+# 8 MPI Process(es), 8 OpenMP Thread(s), Total 64 Unit(s)
+
+******** GPU Information ********
+CUDA Driver Version, 7.0
+CUDA Runtime Version, 7.0
+GPU - id 0
+GPU - name, Tesla K40t
+GPU - # SMs, 15
+GPU - core freq (GHz), 0.745
+GPU - L2 size (MiB), 1.5
+GPU - memory size (GiB), 11.2496
+GPU - memory bus width (bit), 384
+GPU - memory bus freq (GHz), 3.004
+GPU - theoretical peak memory bandwidth (GB/s), 288.384
+GPU - ECC, On
+
+GPU - id 1
+GPU - name, Tesla K40t
+GPU - # SMs, 15
+GPU - core freq (GHz), 0.745
+GPU - L2 size (MiB), 1.5
+GPU - memory size (GiB), 11.2496
+GPU - memory bus width (bit), 384
+GPU - memory bus freq (GHz), 3.004
+GPU - theoretical peak memory bandwidth (GB/s), 288.384
+GPU - ECC, On
+
+# Mode = Benchmark
+# Number of Particles = 4152384
+# System Size = (180,180,180)
+# Density = 0.712
+# Cutoff Length  = 3
+# TimeStep = 0.001
+# ControlTemperature = no
+# IsPeriodic = yes
+cpu_time/gpu_time = 0.936137
+0.151 0.137756 -3.36513 -4.84025 #observe
+cpu_time/gpu_time = 0.936938
+0.251 0.175206 -3.21353 -4.8402 #observe
+cpu_time/gpu_time = 0.929117
+0.351 0.183607 -3.06502 -4.84019 #observe
+cpu_time/gpu_time = 0.938507
+0.451 0.200851 -2.99194 -4.84019 #observe
+cpu_time/gpu_time = 0.944897
+0.551 0.212148 -2.88954 -4.84019 #observe
+cpu_time/gpu_time = 0.957632
+0.651 0.222091 -2.7739 -4.84019 #observe
+cpu_time/gpu_time = 0.964945
+0.751 0.230904 -2.65926 -4.84019 #observe
+cpu_time/gpu_time = 0.973231
+0.851 0.23898 -2.55047 -4.84019 #observe
+cpu_time/gpu_time = 0.978628
+0.951 0.246731 -2.44598 -4.84019 #observe
+cpu_time/gpu_time = 0.988577
+1.051 0.254258 -2.34195 -4.84019 #observe
+cpu_time/gpu_time = 0.990848
+# N = 4152384 29.985 [SEC] 138.482 [MUPS]

@@ -1,0 +1,36 @@
+mpijob CMD    : mpirun -f /tmp/mpiexec.params.m002903.9312
+mpijob PARAMS : -d /home/m0029/m002903/mdacp-2.20 r5i5n0 2, r5i5n1 2, r5i5n2 2,
+        r5i5n3 2 omplace -nt 8 -c 0-7,12-19 "./mdacp" "input_gpu.cfg"
+
+SGI MPT Placement option
+--------------------------
+omplace -nt 8 -c 0-7,12-19
+
+Node   MPI
+------------
+r5i5n0 2
+r5i5n1 2
+r5i5n2 2
+r5i5n3 2
+
+# MDACP Ver 2.20
+# 8 MPI Process(es), 8 OpenMP Thread(s), Total 64 Unit(s)
+# Mode = Benchmark
+# Number of Particles = 4152384
+# System Size = (180,180,180)
+# Density = 0.712
+# Cutoff Length  = 3
+# TimeStep = 0.001
+# ControlTemperature = no
+# IsPeriodic = yes
+0.151 0.137756 -3.36513 -4.84025 #observe
+0.251 0.175206 -3.21353 -4.8402 #observe
+0.351 0.183607 -3.06502 -4.84019 #observe
+0.451 0.200851 -2.99194 -4.84019 #observe
+0.551 0.212148 -2.88954 -4.84019 #observe
+0.651 0.222091 -2.7739 -4.84019 #observe
+0.751 0.230904 -2.65926 -4.84019 #observe
+0.851 0.23898 -2.55047 -4.84019 #observe
+0.951 0.246731 -2.44598 -4.84019 #observe
+1.051 0.254258 -2.34195 -4.84019 #observe
+# N = 4152384 53.1694 [SEC] 78.0973 [MUPS]
