@@ -5,7 +5,6 @@
 //----------------------------------------------------------------------
 static void show_driver_ver(void);
 static void show_runtime_ver(void);
-static void device_query(const int dev_id);
 //----------------------------------------------------------------------
 void
 device_query_all(void) {
@@ -34,7 +33,7 @@ show_runtime_ver(void) {
        << runtime_ver / 1000 << "." << (runtime_ver % 100) / 10 << "\n";
 }
 //----------------------------------------------------------------------
-static void
+void
 device_query(const int dev_id) {
   cudaDeviceProp dev_prop;
   checkCudaErrors(cudaGetDeviceProperties(&dev_prop, dev_id));

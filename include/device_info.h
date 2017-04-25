@@ -2,6 +2,7 @@
 #ifndef device_info_h
 #define device_info_h
 //---------------------------------------------------------------------
+void device_query(const int dev_id);
 void device_query_all(void);
 //---------------------------------------------------------------------
 #endif

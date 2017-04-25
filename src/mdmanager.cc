@@ -32,23 +32,32 @@ MDManager::MDManager(int &argc, char ** &argv) {
   mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
 
 #ifdef USE_GPU
-  device_query_all(); // show gpu info
+  int num_gpus_per_node = 0, dev_cnt = 0;
+  checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
+  mout << "# " << dev_cnt << "GPUs are found." << std::endl;
+  if (argc > 2) {
+    num_gpus_per_node = std::atoi(argv[2]);
+    if (num_gpus_per_node < 0) {
+      mout << "Error: num_gpus_per_node should be positive." << std::endl;
+      exit(1);
+    }
+    if (num_gpus_per_node > dev_cnt) {
+      mout << "Error: Too many GPUs (" << num_gpus_per_node << ") are specified." << std::endl;
+      mout << "There is(are)" << dev_cnt << "GPU(s) in one node." << std::endl;
+      exit(1);
+    }
+  } else {
+    mout << "# Number of GPUs per node is not specified." << std::endl;
+    num_gpus_per_node = dev_cnt;
+  }
+  mout << "# Will use " << num_gpus_per_node << "GPU(s) / node." << std::endl;
+  for (int i = 0; i < num_gpus_per_node; i++) device_query(i);
 
-  const auto gpu_id = rank % NUM_GPUS_PER_NODE;
+  const auto gpu_id = rank % num_gpus_per_node;
   checkCudaErrors(cudaSetDevice(gpu_id));
 
   strms.resize(num_threads);
-  for (auto& strm : strms) {
-    checkCudaErrors(cudaStreamCreate(&strm));
-  }
-
-  int dev_cnt = 0;
-  checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
-  if (dev_cnt != NUM_GPUS_PER_NODE) {
-    mout << "Error:" << std::endl;
-    mout << "# of GPUs per node should be equal to NUM_GPUS_PER_NODE" << std::endl;
-    exit(1);
-  }
+  for (auto& strm : strms) checkCudaErrors(cudaStreamCreate(&strm));
 #endif
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
