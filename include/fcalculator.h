@@ -19,6 +19,11 @@ namespace ForceCalculator {
    void CalculateForceReactlessSIMD_errsafe(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
 #ifdef AVX2
    void CalculateForceAVX2(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
+   void CalculateForceAVX2Reactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo,
+                                    const int beg = 0);
+#endif
+#ifdef AVX512
+   void CalculateForceAVX512(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
 #endif
 #ifdef USE_GPU
    void CalculateForceGPU(Variables* vars,
@@ -26,10 +31,6 @@ namespace ForceCalculator {
                           SimulationInfo *sinfo,
                           const int pn_gpu,
                           cudaStream_t strm);
-   void CalculateForceAVX2Reactless(Variables *vars,
-                                    MeshList *mesh,
-                                    SimulationInfo *sinfo,
-                                    const int beg);
 #endif
    void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo);
    void CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);

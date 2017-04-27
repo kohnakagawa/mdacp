@@ -8,7 +8,8 @@
 #include "fj_tool/fipp.h"
 #include "simd_fx10.h"
 #endif
-#ifdef AVX2
+#if defined AVX2 || defined AVX512
+#include <x86intrin.h>
 #include "simd_avx2.h"
 #endif
 //----------------------------------------------------------------------
@@ -36,6 +37,8 @@ ForceCalculator::CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo 
   CalculateForceReactlessSIMD_errsafe(vars, mesh, sinfo);
 #elif AVX2
   CalculateForceAVX2(vars, mesh, sinfo);
+#elif AVX512
+  CalculateForceAVX512(vars, mesh, sinfo);
 #else
   CalculateForceNext(vars, mesh, sinfo);
   //CalculateForceBruteforce(vars,sinfo);
@@ -460,84 +463,6 @@ ForceCalculator::CalculateForceAVX2(Variables *vars, MeshList *mesh, SimulationI
     p[i][Z] += pfz;
   }
 }
-#endif
-//----------------------------------------------------------------------
-// Calculate Force without optimization
-//----------------------------------------------------------------------
-void
-ForceCalculator::CalculateForcePair(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
-  const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
-  const double C2 = vars->GetC2();
-  const double dt = sinfo->TimeStep;
-
-  double (*q)[D] = vars->q;
-  double (*p)[D] = vars->p;
-
-  int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
-
-  const int number_of_pairs = mesh->GetPairNumber();
-  for (int k = 0; k < number_of_pairs; k++) {
-    int i = key_partner_pairs[k][MeshList::KEY];
-    int j = key_partner_pairs[k][MeshList::PARTNER];
-
-    double dx = q[j][X] - q[i][X];
-    double dy = q[j][Y] - q[i][Y];
-    double dz = q[j][Z] - q[i][Z];
-    double r2 = (dx * dx + dy * dy + dz * dz);
-    if (r2 > CL2)continue;
-    double r6 = r2 * r2 * r2;
-    double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
-    p[i][X] += df * dx;
-    p[i][Y] += df * dy;
-    p[i][Z] += df * dz;
-    p[j][X] -= df * dx;
-    p[j][Y] -= df * dy;
-    p[j][Z] -= df * dz;
-  }
-}
-//----------------------------------------------------------------------
-void
-ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
-  const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
-  const double C2 = vars->GetC2();
-  const double dt = sinfo->TimeStep;
-  const int pn = vars->GetTotalParticleNumber();
-
-  double (*q)[D] = vars->q;
-  double (*p)[D] = vars->p;
-  const int *sorted_list = mesh->GetSortedList();
-
-  for (int i = 0; i < pn; i++) {
-    const double qx_key = q[i][X];
-    const double qy_key = q[i][Y];
-    const double qz_key = q[i][Z];
-    const int np = mesh->GetPartnerNumber(i);
-    double pfx = 0;
-    double pfy = 0;
-    double pfz = 0;
-    const int kp = mesh->GetKeyPointer(i);
-    for (int k = 0; k < np; k++) {
-      const int j = sorted_list[kp + k];
-      double dx = q[j][X] - qx_key;
-      double dy = q[j][Y] - qy_key;
-      double dz = q[j][Z] - qz_key;
-      double r2 = (dx * dx + dy * dy + dz * dz);
-      double r6 = r2 * r2 * r2;
-      double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
-      if (r2 > CL2) {
-        df = 0.0;
-      }
-      pfx += df * dx;
-      pfy += df * dy;
-      pfz += df * dz;
-    }
-    p[i][X] += pfx;
-    p[i][Y] += pfy;
-    p[i][Z] += pfz;
-  }
-}
-//----------------------------------------------------------------------
-#ifdef USE_GPU
 //----------------------------------------------------------------------
 void
 ForceCalculator::CalculateForceAVX2Reactless(Variables *vars,
@@ -634,8 +559,235 @@ ForceCalculator::CalculateForceAVX2Reactless(Variables *vars,
     p[i][Z] += pfz;
   }
 }
+#endif
+//----------------------------------------------------------------------
+#ifdef AVX512
+void
+ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
+
+  const auto CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
+  const auto C2 = vars->GetC2() * 8.0;
+  const auto dt = sinfo->TimeStep;
+  double (*q)[D] = vars->q;
+  double (*p)[D] = vars->p;
+  const auto pn = vars->GetParticleNumber();
+  const int *sorted_list = mesh->GetSortedList();
+
+  const auto vzero = _mm512_setzero_pd();
+  const auto vcl2  = _mm512_set1_pd(CL2);
+  const auto vc24  = _mm512_set1_pd(24.0 * dt);
+  const auto vc48  = _mm512_set1_pd(48.0 * dt);
+  const auto vc2   = _mm512_set1_pd(C2 * dt);
+
+  const auto vpitch = _mm512_set1_epi64(8);
+
+  for (int i = 0; i < pn; i++) {
+    const auto np = mesh->GetPartnerNumber(i);
+    const auto vqxi = _mm512_set1_pd(q[i][X]);
+    const auto vqyi = _mm512_set1_pd(q[i][Y]);
+    const auto vqzi = _mm512_set1_pd(q[i][Z]);
+
+    auto vpxi = _mm512_setzero_pd();
+    auto vpyi = _mm512_setzero_pd();
+    auto vpzi = _mm512_setzero_pd();
+
+    const auto kp = mesh->GetKeyPointer(i);
+    const auto vnp = _mm512_set1_epi64(np);
+    auto vk_idx = _mm512_set_epi64(7LL, 6LL, 5LL, 4LL,
+                                   3LL, 2LL, 1LL, 0LL);
+    const auto num_loop = ((np - 1) / 8 + 1) * 8;
+
+    // initial force calculation
+    // load position
+    auto vindex_a = _mm256_slli_epi32(_mm256_lddqu_si256((const __m256i*)(&sorted_list[kp])),
+                                      2);
+    auto mask_a = _mm512_cmp_epi64_mask(vk_idx,
+                                        vnp,
+                                        _MM_CMPINT_LT);
+    auto vqxj = _mm512_i32gather_pd(vindex_a, &q[0][X], 8);
+    auto vqyj = _mm512_i32gather_pd(vindex_a, &q[0][Y], 8);
+    auto vqzj = _mm512_i32gather_pd(vindex_a, &q[0][Z], 8);
+
+    // calc distance
+    auto vdx_a = _mm512_sub_pd(vqxj, vqxi);
+    auto vdy_a = _mm512_sub_pd(vqyj, vqyi);
+    auto vdz_a = _mm512_sub_pd(vqzj, vqzi);
+    auto vr2 = _mm512_fmadd_pd(vdz_a,
+                               vdz_a,
+                               _mm512_fmadd_pd(vdy_a,
+                                               vdy_a,
+                                               _mm512_mul_pd(vdx_a, vdx_a)));
+
+    // calc force norm
+    auto vr6 = _mm512_mul_pd(_mm512_mul_pd(vr2, vr2), vr2);
+
+    auto vdf = _mm512_add_pd(_mm512_div_pd(_mm512_fmsub_pd(vc24, vr6, vc48),
+                                           _mm512_mul_pd(_mm512_mul_pd(vr6, vr6),
+                                                         vr2)),
+                             vc2);
+    vdf = _mm512_mask_blend_pd(_mm512_cmp_pd_mask(vr2, vcl2, _CMP_LE_OS),
+                               vzero, vdf);
+    vdf = _mm512_mask_blend_pd(mask_a, vzero, vdf);
+
+    for (int k = 8; k < num_loop; k += 8) {
+      // load position
+      auto vindex_b = _mm256_slli_epi32(_mm256_lddqu_si256((const __m256i*)(&sorted_list[kp + k])),
+                                        2);
+      vk_idx = _mm512_add_epi64(vk_idx, vpitch);
+      auto mask_b = _mm512_cmp_epi64_mask(vk_idx,
+                                          vnp,
+                                          _MM_CMPINT_LT);
+      vqxj = _mm512_i32gather_pd(vindex_b, &q[0][X], 8);
+      vqyj = _mm512_i32gather_pd(vindex_b, &q[0][Y], 8);
+      vqzj = _mm512_i32gather_pd(vindex_b, &q[0][Z], 8);
+
+      // calc distance
+      auto vdx_b = _mm512_sub_pd(vqxj, vqxi);
+      auto vdy_b = _mm512_sub_pd(vqyj, vqyi);
+      auto vdz_b = _mm512_sub_pd(vqzj, vqzi);
+      vr2 = _mm512_fmadd_pd(vdz_b,
+                            vdz_b,
+                            _mm512_fmadd_pd(vdy_b,
+                                            vdy_b,
+                                            _mm512_mul_pd(vdx_b,
+                                                          vdx_b)));
+
+      // write back j particle momentum
+      vpxi = _mm512_fmadd_pd(vdf, vdx_a, vpxi);
+      vpyi = _mm512_fmadd_pd(vdf, vdy_a, vpyi);
+      vpzi = _mm512_fmadd_pd(vdf, vdz_a, vpzi);
+
+      auto vpxj = _mm512_i32gather_pd(vindex_a, &p[0][X], 8);
+      auto vpyj = _mm512_i32gather_pd(vindex_a, &p[0][Y], 8);
+      auto vpzj = _mm512_i32gather_pd(vindex_a, &p[0][Z], 8);
+
+      vpxj = _mm512_fnmadd_pd(vdf, vdx_a, vpxj);
+      vpyj = _mm512_fnmadd_pd(vdf, vdy_a, vpyj);
+      vpzj = _mm512_fnmadd_pd(vdf, vdz_a, vpzj);
+
+      _mm512_mask_i32scatter_pd(&p[0][X], mask_a, vindex_a, vpxj, 8);
+      _mm512_mask_i32scatter_pd(&p[0][Y], mask_a, vindex_a, vpyj, 8);
+      _mm512_mask_i32scatter_pd(&p[0][Z], mask_a, vindex_a, vpzj, 8);
+
+      // calc force norm
+      vr6 = _mm512_mul_pd(_mm512_mul_pd(vr2, vr2), vr2);
+      vdf = _mm512_add_pd(_mm512_div_pd(_mm512_fmsub_pd(vc24, vr6, vc48),
+                                        _mm512_mul_pd(_mm512_mul_pd(vr6, vr6),
+                                                      vr2)),
+                                        vc2);
+      vdf = _mm512_mask_blend_pd(_mm512_cmp_pd_mask(vr2, vcl2, _CMP_LE_OS),
+                                 vzero, vdf);
+      vdf = _mm512_mask_blend_pd(mask_b, vzero, vdf);
+
+      // send to next
+      vindex_a = vindex_b;
+      mask_a   = mask_b;
+      vdx_a    = vdx_b;
+      vdy_a    = vdy_b;
+      vdz_a    = vdz_b;
+    } // end of k loop
+
+    // final write back momentum
+    // write back j particle momentum
+    vpxi = _mm512_fmadd_pd(vdf, vdx_a, vpxi);
+    vpyi = _mm512_fmadd_pd(vdf, vdy_a, vpyi);
+    vpzi = _mm512_fmadd_pd(vdf, vdz_a, vpzi);
+
+    auto vpxj = _mm512_i32gather_pd(vindex_a, &p[0][X], 8);
+    auto vpyj = _mm512_i32gather_pd(vindex_a, &p[0][Y], 8);
+    auto vpzj = _mm512_i32gather_pd(vindex_a, &p[0][Z], 8);
+
+    vpxj = _mm512_fnmadd_pd(vdf, vdx_a, vpxj);
+    vpyj = _mm512_fnmadd_pd(vdf, vdy_a, vpyj);
+    vpzj = _mm512_fnmadd_pd(vdf, vdz_a, vpzj);
+
+    _mm512_mask_i32scatter_pd(&p[0][X], mask_a, vindex_a, vpxj, 8);
+    _mm512_mask_i32scatter_pd(&p[0][Y], mask_a, vindex_a, vpyj, 8);
+    _mm512_mask_i32scatter_pd(&p[0][Z], mask_a, vindex_a, vpzj, 8);
+
+    // write back i particle momentum
+    p[i][X] += _mm512_reduce_add_pd(vpxi);
+    p[i][Y] += _mm512_reduce_add_pd(vpyi);
+    p[i][Z] += _mm512_reduce_add_pd(vpzi);
+  } // end of i loop
+}
 //----------------------------------------------------------------------
 #endif
+//----------------------------------------------------------------------
+// Calculate Force without optimization
+//----------------------------------------------------------------------
+void
+ForceCalculator::CalculateForcePair(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
+  const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
+  const double C2 = vars->GetC2();
+  const double dt = sinfo->TimeStep;
+
+  double (*q)[D] = vars->q;
+  double (*p)[D] = vars->p;
+
+  int (*key_partner_pairs)[2] = mesh->GetKeyPartnerPairs();
+
+  const int number_of_pairs = mesh->GetPairNumber();
+  for (int k = 0; k < number_of_pairs; k++) {
+    int i = key_partner_pairs[k][MeshList::KEY];
+    int j = key_partner_pairs[k][MeshList::PARTNER];
+
+    double dx = q[j][X] - q[i][X];
+    double dy = q[j][Y] - q[i][Y];
+    double dz = q[j][Z] - q[i][Z];
+    double r2 = (dx * dx + dy * dy + dz * dz);
+    if (r2 > CL2)continue;
+    double r6 = r2 * r2 * r2;
+    double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+    p[i][X] += df * dx;
+    p[i][Y] += df * dy;
+    p[i][Z] += df * dz;
+    p[j][X] -= df * dx;
+    p[j][Y] -= df * dy;
+    p[j][Z] -= df * dz;
+  }
+}
+//----------------------------------------------------------------------
+void
+ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
+  const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
+  const double C2 = vars->GetC2();
+  const double dt = sinfo->TimeStep;
+  const int pn = vars->GetTotalParticleNumber();
+
+  double (*q)[D] = vars->q;
+  double (*p)[D] = vars->p;
+  const int *sorted_list = mesh->GetSortedList();
+
+  for (int i = 0; i < pn; i++) {
+    const double qx_key = q[i][X];
+    const double qy_key = q[i][Y];
+    const double qz_key = q[i][Z];
+    const int np = mesh->GetPartnerNumber(i);
+    double pfx = 0;
+    double pfy = 0;
+    double pfz = 0;
+    const int kp = mesh->GetKeyPointer(i);
+    for (int k = 0; k < np; k++) {
+      const int j = sorted_list[kp + k];
+      double dx = q[j][X] - qx_key;
+      double dy = q[j][Y] - qy_key;
+      double dz = q[j][Z] - qz_key;
+      double r2 = (dx * dx + dy * dy + dz * dz);
+      double r6 = r2 * r2 * r2;
+      double df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+      if (r2 > CL2) {
+        df = 0.0;
+      }
+      pfx += df * dx;
+      pfy += df * dy;
+      pfz += df * dz;
+    }
+    p[i][X] += pfx;
+    p[i][Y] += pfy;
+    p[i][Z] += pfz;
+  }
+}
 //----------------------------------------------------------------------
 #ifdef FX10
 //----------------------------------------------------------------------
