@@ -30,6 +30,7 @@ if (USE_GPU_CUDA)
 
   set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_35 -Xptxas -v")
 
+  link_directories(${CUDA_PATH}/lib64)
   include_directories(${CUDA_PATH}/include)
   include_directories(${CUDA_PATH}/samples/common/inc)
 
@@ -49,6 +50,5 @@ add_executable(mdacp ${mdacp_srcs})
 # target_link_libraries(mdacp mpi mpi++) # for sekirei SGI MPT
 
 if (USE_GPU_CUDA)
-  link_directories(${CUDA_PATH}/lib64)
   target_link_libraries(mdacp cudart)
 endif()
