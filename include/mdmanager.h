@@ -33,6 +33,9 @@ private:
   double s_time;
 #ifdef USE_GPU
   std::vector<cudaStream_t> strms;
+  std::vector<int> pn_gpu;
+  double tgpu_per_tcpu = 1.0;
+  void AdjustCPUGPUWorkBalance(void);
 #endif
 public:
   MDManager(int &argc, char** &argv);

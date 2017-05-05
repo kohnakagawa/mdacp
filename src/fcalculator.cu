@@ -21,6 +21,7 @@ ForceCalculator::CalculateForceGPU(Variables* vars,
   p.Host2DevAsync(0, pn_gpu, strm);
 
 #if 0
+  // optimized for Pascal
   const auto gr_size = (WARP_SIZE * pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
   CalculateForceWarpUnrollReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
                                                                                  (VecCuda*)p.GetDevPtr(),
@@ -29,6 +30,7 @@ ForceCalculator::CalculateForceGPU(Variables* vars,
                                                                                  mesh->GetCudaPtrKeyPointerP().GetDevPtr(),
                                                                                  CL2, C2, dt, pn_gpu);
 #else
+  // optimized for Kepler
   const auto gr_size = (pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
   CalculateForceReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
                                                                        (VecCuda*)p.GetDevPtr(),

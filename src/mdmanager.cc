@@ -58,6 +58,8 @@ MDManager::MDManager(int &argc, char ** &argv) {
 
   strms.resize(num_threads);
   for (auto& strm : strms) checkCudaErrors(cudaStreamCreate(&strm));
+
+  pn_gpu.resize(num_threads);
 #endif
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
@@ -202,22 +204,20 @@ MDManager::CalculateForce(void) {
 #ifdef USE_GPU
   static StopWatch swForce_cpu(GetRank(), "force_cpu");
   static StopWatchCuda swForce_gpu(GetRank(), "force_gpu");
-
-  static std::vector<int> pn_gpu(num_threads);
   static int profile_cnt = 0;
 
+  // start timer
+  swForce_gpu.Start(); swForce_cpu.Start();
+
   // gpu force calc
-  swForce_gpu.Start();
-  for (int i = 0; i < num_threads; i++) { // GPU
-    pn_gpu[i] = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
+  for (int i = 0; i < num_threads; i++) {
     mdv[i]->CalculateForceGPU(pn_gpu[i], strms[i]);
   }
   swForce_gpu.Stop();
 
   // cpu force calc
-  swForce_cpu.Start();
   #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) { // CPU
+  for (int i = 0; i < num_threads; i++) {
     mdv[i]->CalculateForceCPU(pn_gpu[i]);
   }
   swForce_cpu.Stop();
@@ -227,10 +227,11 @@ MDManager::CalculateForce(void) {
   swForce_gpu.Record();
 
   // show load imbalance
+  const auto tgpu = swForce_gpu.GetBackData();
+  const auto tcpu = swForce_cpu.GetBackData();
+  tgpu_per_tcpu = tgpu / tcpu;
   if (profile_cnt == 100) {
-    const auto gpu_time = swForce_gpu.GetBackData();
-    const auto cpu_time = swForce_cpu.GetBackData();
-    mout << "cpu_time/gpu_time = " << cpu_time / gpu_time << "\n";
+    mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << "\n";
     profile_cnt = 0;
   }
   profile_cnt++;
@@ -368,10 +369,10 @@ MDManager::MakePairList(void) {
   }
 
 #ifdef USE_GPU
+  AdjustCPUGPUWorkBalance();
   for (int i = 0; i < num_threads; i++) {
-    const auto pn_gpu = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
-    mdv[i]->SendNeighborInfoToGPUAsync(pn_gpu, strms[i]);
-    mdv[i]->TransposeSortedList(pn_gpu, strms[i]);
+    mdv[i]->SendNeighborInfoToGPUAsync(pn_gpu[i], strms[i]);
+    mdv[i]->TransposeSortedList(pn_gpu[i], strms[i]);
   }
   checkCudaErrors(cudaDeviceSynchronize());
 #endif
@@ -551,4 +552,15 @@ MDManager::ExecuteAll(Executor *ex) {
     mdv[i]->Execute(ex);
   }
 }
+//----------------------------------------------------------------------
+#ifdef USE_GPU
+void
+MDManager::AdjustCPUGPUWorkBalance(void) {
+  static double work_balance = 0.7;
+  work_balance /= (1.0 - tgpu_per_tcpu) * work_balance + tgpu_per_tcpu;
+  for (int i = 0; i < num_threads; i++) {
+    pn_gpu[i] = int(mdv[i]->GetParticleNumber() * work_balance);
+  }
+}
+#endif
 //----------------------------------------------------------------------
