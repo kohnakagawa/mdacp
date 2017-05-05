@@ -65,7 +65,8 @@ public:
   void CalculateForceCPU(const int pn_gpu) {
     ForceCalculator::CalculateForceAVX2Reactless(vars, mesh, sinfo, pn_gpu);
   };
-  void SendNeighborInfoToGPU(void) {mesh->SendNeighborInfoToGPU(vars);};
+  void SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm = 0) {mesh->SendNeighborInfoToGPUAsync(pn_gpu, strm);};
+  void TransposeSortedList(const int pn_gpu, cudaStream_t strm = 0) {mesh->TransposeSortedList(pn_gpu, strm);};
 #endif
 
   void MakeBufferForSendingParticle(const int dir);

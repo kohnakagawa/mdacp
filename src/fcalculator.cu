@@ -19,16 +19,27 @@ ForceCalculator::CalculateForceGPU(Variables* vars,
   // enqueue GPU task
   q.Host2DevAsync(0, pn_tot, strm);
   p.Host2DevAsync(0, pn_gpu, strm);
+
+#if 0
   const auto gr_size = (WARP_SIZE * pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
-  CalculateForceWarpUnroll<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
-                                                                    (VecCuda*)p.GetDevPtr(),
-                                                                    mesh->GetCudaPtrSortedList().GetDevPtr(),
-                                                                    mesh->GetCudaPtrNumberOfPartners().GetDevPtr(),
-                                                                    mesh->GetCudaPtrKeyPointerP().GetDevPtr(),
-                                                                    CL2, C2, dt, pn_gpu);
+  CalculateForceWarpUnrollReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
+                                                                                 (VecCuda*)p.GetDevPtr(),
+                                                                                 mesh->GetCudaPtrSortedList().GetDevPtr(),
+                                                                                 mesh->GetCudaPtrNumberOfPartners().GetDevPtr(),
+                                                                                 mesh->GetCudaPtrKeyPointerP().GetDevPtr(),
+                                                                                 CL2, C2, dt, pn_gpu);
+#else
+  const auto gr_size = (pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
+  CalculateForceReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
+                                                                       (VecCuda*)p.GetDevPtr(),
+                                                                       mesh->GetDevPtrTransposedList(),
+                                                                       mesh->GetCudaPtrNumberOfPartners().GetDevPtr(),
+                                                                       CL2, C2, dt, pn_gpu);
+#endif
+
   p.Dev2HostAsync(0, pn_gpu, strm);
 
   // NOTE:
-  // Synchronization is not needed.
+  // Synchronized in mdmanager.cc
 }
 //----------------------------------------------------------------------

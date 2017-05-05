@@ -26,6 +26,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   key_pointer.Allocate(N);
   number_of_partners.Allocate(N);
   sorted_list.Allocate(PAIRLIST_SIZE);
+  transposed_list = thrust::device_malloc<int>(PAIRLIST_SIZE);
 #endif
 }
 //----------------------------------------------------------------------
@@ -33,6 +34,10 @@ MeshList::~MeshList(void) {
   if (NULL != mesh_index) delete [] mesh_index;
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
+
+#ifdef USE_GPU
+  thrust::device_free(transposed_list);
+#endif
 }
 //----------------------------------------------------------------------
 void
@@ -479,14 +484,13 @@ MeshList::MakeShflTable() {
 //----------------------------------------------------------------------
 #ifdef USE_GPU
 void
-MeshList::SendNeighborInfoToGPU(Variables *vars) {
-  const int pn_gpu = int(vars->GetParticleNumber() * WORK_BALANCE);
-  key_pointer.Host2Dev(0, pn_gpu);
-  number_of_partners.Host2Dev(0, pn_gpu);
-  const int number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
+MeshList::SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm) {
+  key_pointer.Host2DevAsync(0, pn_gpu, strm);
+  number_of_partners.Host2DevAsync(0, pn_gpu, strm);
+  const auto number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
                                                   number_of_partners.GetHostPtr() + pn_gpu,
                                                   0);
-  sorted_list.Host2Dev(0, number_of_pairs_gpu);
+  sorted_list.Host2DevAsync(0, number_of_pairs_gpu, strm);
 }
 #endif
 //----------------------------------------------------------------------

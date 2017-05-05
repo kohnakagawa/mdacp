@@ -222,7 +222,7 @@ MDManager::CalculateForce(void) {
   }
   swForce_cpu.Stop();
 
-  // sync
+  // cpu gpu sync
   checkCudaErrors(cudaDeviceSynchronize());
   swForce_gpu.Record();
 
@@ -366,10 +366,14 @@ MDManager::MakePairList(void) {
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->MakePairList();
   }
+
 #ifdef USE_GPU
   for (int i = 0; i < num_threads; i++) {
-    mdv[i]->SendNeighborInfoToGPU();
+    const auto pn_gpu = int(mdv[i]->GetParticleNumber() * WORK_BALANCE);
+    mdv[i]->SendNeighborInfoToGPUAsync(pn_gpu, strms[i]);
+    mdv[i]->TransposeSortedList(pn_gpu, strms[i]);
   }
+  checkCudaErrors(cudaDeviceSynchronize());
 #endif
 }
 //----------------------------------------------------------------------

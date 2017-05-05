@@ -35,7 +35,9 @@ if (USE_GPU_CUDA)
   include_directories(${CUDA_PATH}/samples/common/inc)
 
   cuda_compile(fcalculator_o ./src/fcalculator.cu)
+  cuda_compile(meshlist_o ./src/meshlist.cu)
   set(mdacp_srcs ${mdacp_srcs} ${fcalculator_o})
+  set(mdacp_srcs ${mdacp_srcs} ${meshlist_o})
 
   add_subdirectory(unit_test)
 else ()

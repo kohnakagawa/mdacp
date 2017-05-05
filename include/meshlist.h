@@ -8,6 +8,9 @@
 #include "mdrect.h"
 #ifdef USE_GPU
 #include "cuda_ptr.h"
+#include <thrust/device_ptr.h>
+#include <thrust/device_malloc.h>
+#include <thrust/device_free.h>
 #endif
 //----------------------------------------------------------------------
 class MeshList {
@@ -32,6 +35,7 @@ private:
   CudaPtr<int> key_pointer;
   CudaPtr<int> number_of_partners;
   CudaPtr<int> sorted_list;
+  thrust::device_ptr<int> transposed_list;
 #else
   int key_pointer[N];
   int number_of_partners[N];
@@ -71,10 +75,12 @@ public:
   const CudaPtr<int>& GetCudaPtrSortedList(void) const {return sorted_list;};
   const CudaPtr<int>& GetCudaPtrKeyPointerP(void) const {return key_pointer;};
   const CudaPtr<int>& GetCudaPtrNumberOfPartners(void) const {return number_of_partners;};
-  void SendNeighborInfoToGPU(Variables *vars);
   int *GetSortedList(void) {return sorted_list.GetHostPtr();};
   int* GetKeyPointerP(void) {return key_pointer.GetHostPtr();};
   int* GetNumberOfPartners(void) {return number_of_partners.GetHostPtr();};
+  int* GetDevPtrTransposedList(void) {return thrust::raw_pointer_cast(transposed_list);};
+  void SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm = 0);
+  void TransposeSortedList(const int pn_gpu, cudaStream_t strm = 0);
 #else
   int *GetSortedList(void) {return sorted_list;};
   int* GetKeyPointerP(void) {return key_pointer;};
