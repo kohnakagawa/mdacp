@@ -488,8 +488,8 @@ MeshList::SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm) {
   key_pointer.Host2DevAsync(0, pn_gpu, strm);
   number_of_partners.Host2DevAsync(0, pn_gpu, strm);
   const auto number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
-                                                  number_of_partners.GetHostPtr() + pn_gpu,
-                                                  0);
+                                                   number_of_partners.GetHostPtr() + pn_gpu,
+                                                   0);
   sorted_list.Host2DevAsync(0, number_of_pairs_gpu, strm);
 }
 #endif
