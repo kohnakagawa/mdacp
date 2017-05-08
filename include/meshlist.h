@@ -25,7 +25,7 @@ private:
   int32_t shfl_table[16][8];
   void MakeShflTable(void);
   void SearchMeshAVX2(int index, Variables *vars, SimulationInfo *sinfo);
-#elif defined AVX512
+#elif AVX512
   int64_t shfl_table[256][8];
   void MakeShflTable(void);
   void SearchMeshAVX512(int index, Variables *vars, SimulationInfo *sinfo);

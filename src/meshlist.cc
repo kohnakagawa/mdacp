@@ -635,7 +635,7 @@ MeshList::MakeShflTable(void) {
     }
   }
 }
-#elif defined AVX512
+#elif AVX512
 void
 MeshList::MakeShflTable(void) {
   std::fill(shfl_table[0], shfl_table[256], 0);
