@@ -737,7 +737,8 @@ ForceCalculator::CalculateForcePair(Variables *vars, MeshList *mesh, SimulationI
 }
 //----------------------------------------------------------------------
 void
-ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo) {
+ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo,
+                                         const int beg) {
   const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
   const double C2 = vars->GetC2();
   const double dt = sinfo->TimeStep;
@@ -747,7 +748,7 @@ ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, Simula
   double (*p)[D] = vars->p;
   const int *sorted_list = mesh->GetSortedList();
 
-  for (int i = 0; i < pn; i++) {
+  for (int i = beg; i < pn; i++) {
     const double qx_key = q[i][X];
     const double qy_key = q[i][Y];
     const double qz_key = q[i][Z];

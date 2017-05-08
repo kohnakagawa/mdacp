@@ -13,7 +13,8 @@ namespace ForceCalculator {
    void CalculateForceSorted(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
    void CalculateForceNext(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
    void CalculateForcePair(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
-   void CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
+   void CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo,
+                                const int beg = 0);
 
    void CalculateForceReactlessSIMD(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
    void CalculateForceReactlessSIMD_errsafe(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
