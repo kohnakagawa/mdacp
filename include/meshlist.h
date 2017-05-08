@@ -22,8 +22,13 @@ private:
   int mx, my, mz;
   int particle_position[N];
 #ifdef AVX2
-  int shfl_table[16][8];
-  void MakeShflTable();
+  int32_t shfl_table[16][8];
+  void MakeShflTable(void);
+  void SearchMeshAVX2(int index, Variables *vars, SimulationInfo *sinfo);
+#elif defined AVX512
+  int64_t shfl_table[256][8];
+  void MakeShflTable(void);
+  void SearchMeshAVX512(int index, Variables *vars, SimulationInfo *sinfo);
 #endif
   int key_partner_pairs[PAIRLIST_SIZE][2];
   int * mesh_index;

@@ -18,7 +18,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   mesh_particle_number = NULL;
   ChangeScale(sinfo, r);
 
-#ifdef AVX2
+#if defined AVX2 || defined AVX512
   MakeShflTable();
 #endif
 
@@ -78,7 +78,7 @@ MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
   //MakeListBruteforce(vars,sinfo,myrect);
 
   const int s = number_of_pairs;
-#ifdef AVX2
+#if defined AVX2 || defined AVX512
   for (int k = 0; k < s; k++) {
     const int i = key_partner_pairs[k][KEY];
     number_of_partners[i]++;
@@ -129,7 +129,13 @@ void
 MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
   MakeMesh(vars, sinfo, myrect);
   for (int i = 0; i < number_of_mesh; i++) {
+#ifdef AVX2
+    SearchMeshAVX2(i, vars, sinfo);
+#elif AVX512
+    SearchMeshAVX512(i, vars, sinfo);
+#else
     SearchMesh(i, vars, sinfo);
+#endif
   }
 }
 //----------------------------------------------------------------------
@@ -270,8 +276,57 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
 
   const int in = mesh_particle_number[index];
   const int ln = v.size();
-
+  for (int i = 0; i < in; i++) {
+    const int i1 = v[i];
+    const double x1 = q[i1][X];
+    const double y1 = q[i1][Y];
+    const double z1 = q[i1][Z];
+    for (int j = i + 1; j < ln; j++) {
+      const int i2 = v[j];
+      if (i1 >= pn && i2 >= pn)continue;
+      const double dx = x1 - q[i2][X];
+      const double dy = y1 - q[i2][Y];
+      const double dz = z1 - q[i2][Z];
+      const double r2 = (dx * dx + dy * dy + dz * dz);
+      if (r2 > S2) continue;
+      RegisterPair(i1, i2);
+    }
+  }
+}
+//----------------------------------------------------------------------
 #ifdef AVX2
+// ASSUME: D == 4
+void
+MeshList::SearchMeshAVX2(int index, Variables *vars, SimulationInfo *sinfo) {
+
+  int ix, iy, iz;
+  index2pos(index, ix, iy, iz);
+  std::vector<int> v;
+  v.clear();
+
+  AppendList(ix, iy, iz, v);
+  AppendList(ix + 1,  iy, iz, v);
+  AppendList(ix - 1,  iy + 1, iz, v);
+  AppendList(ix,  iy + 1, iz, v);
+  AppendList(ix + 1,  iy + 1, iz, v);
+
+  AppendList(ix - 1,  iy, iz + 1, v);
+  AppendList(ix,  iy, iz + 1, v);
+  AppendList(ix + 1,  iy, iz + 1, v);
+  AppendList(ix - 1,  iy - 1, iz + 1, v);
+  AppendList(ix,  iy - 1, iz + 1, v);
+  AppendList(ix + 1,  iy - 1, iz + 1, v);
+  AppendList(ix - 1,  iy + 1, iz + 1, v);
+  AppendList(ix,  iy + 1, iz + 1, v);
+  AppendList(ix + 1,  iy + 1, iz + 1, v);
+
+  const double S2 = sinfo->SearchLength * sinfo->SearchLength;
+  const int pn = vars->GetParticleNumber();
+  double (*q)[D] = vars->q;
+
+  const int in = mesh_particle_number[index];
+  const int ln = v.size();
+
   const auto vpn = _mm256_set1_epi64x(pn);
   const auto vsl2 = _mm256_set1_pd(S2);
   for (int i = 0; i < (in / 4) * 4 ; i += 4) {
@@ -308,9 +363,9 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
                                                   _mm256_mul_pd(dvz, dvz))) ;
 
       auto dvr2_flag = _mm256_cmp_pd(dvr2, vsl2, _CMP_LE_OS);
-      int less_than_sl2 = _mm256_movemask_pd(dvr2_flag);
+      int le_sl2 = _mm256_movemask_pd(dvr2_flag);
 
-      const int shfl_key = (i_less_than_pn | j_less_than_pn) & less_than_sl2;
+      const int shfl_key = (i_less_than_pn | j_less_than_pn) & le_sl2;
       if (shfl_key == 0) continue;
 
       const int incr = _popcnt32(shfl_key);
@@ -360,8 +415,114 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
       RegisterPair(i1, i2);
     }
   }
-#else
-  for (int i = 0; i < in; i++) {
+}
+#endif
+//----------------------------------------------------------------------
+#ifdef AVX512
+// ASSUME: D == 4
+void
+MeshList::SearchMeshAVX512(int index, Variables *vars, SimulationInfo *sinfo) {
+
+  int ix, iy, iz;
+  index2pos(index, ix, iy, iz);
+  std::vector<int> v;
+  v.clear();
+
+  AppendList(ix, iy, iz, v);
+  AppendList(ix + 1,  iy, iz, v);
+  AppendList(ix - 1,  iy + 1, iz, v);
+  AppendList(ix,  iy + 1, iz, v);
+  AppendList(ix + 1,  iy + 1, iz, v);
+
+  AppendList(ix - 1,  iy, iz + 1, v);
+  AppendList(ix,  iy, iz + 1, v);
+  AppendList(ix + 1,  iy, iz + 1, v);
+  AppendList(ix - 1,  iy - 1, iz + 1, v);
+  AppendList(ix,  iy - 1, iz + 1, v);
+  AppendList(ix + 1,  iy - 1, iz + 1, v);
+  AppendList(ix - 1,  iy + 1, iz + 1, v);
+  AppendList(ix,  iy + 1, iz + 1, v);
+  AppendList(ix + 1,  iy + 1, iz + 1, v);
+
+  const double S2 = sinfo->SearchLength * sinfo->SearchLength;
+  const int pn = vars->GetParticleNumber();
+  double (*q)[D] = vars->q;
+
+  const int in = mesh_particle_number[index];
+  const int ln = v.size();
+
+  const auto vpn = _mm512_set1_epi64(pn);
+  const auto vsl2 = _mm512_set1_pd(S2);
+  for (int i = 0; i < (in / 8) * 8 ; i += 8) {
+    const auto i_a = v[i    ], i_b = v[i + 1];
+    const auto i_c = v[i + 2], i_d = v[i + 3];
+    const auto i_e = v[i + 4], i_f = v[i + 5];
+    const auto i_g = v[i + 6], i_h = v[i + 7];
+
+    auto vi_id = _mm512_set_epi64(i_h, i_g, i_f, i_e,
+                                  i_d, i_c, i_b, i_a);
+
+    auto vindex = _mm512_slli_epi64(vi_id, 2);
+    auto vqix   = _mm512_i64gather_pd(vindex, &q[0][X], 8);
+    auto vqiy   = _mm512_i64gather_pd(vindex, &q[0][Y], 8);
+    auto vqiz   = _mm512_i64gather_pd(vindex, &q[0][Z], 8);
+
+    const auto i_less_than_pn = _mm512_cmpgt_epi64_mask(vpn, vi_id);
+    for (int k = i + 8; k < ln; k++) {
+      const auto j = v[k];
+      const __mmask8 j_less_than_pn = (j < pn) ? 0xff : 0;
+
+      auto vqjx = _mm512_set1_pd(q[j][X]);
+      auto vqjy = _mm512_set1_pd(q[j][Y]);
+      auto vqjz = _mm512_set1_pd(q[j][Z]);
+
+      auto dvx = _mm512_sub_pd(vqjx, vqix);
+      auto dvy = _mm512_sub_pd(vqjy, vqiy);
+      auto dvz = _mm512_sub_pd(vqjz, vqiz);
+
+      auto dvr2 = _mm512_fmadd_pd(dvx, dvx,
+                                  _mm512_fmadd_pd(dvy, dvy,
+                                                  _mm512_mul_pd(dvz, dvz)));
+
+      auto le_sl2 = _mm512_cmp_pd_mask(dvr2, vsl2, _CMP_LE_OS);
+
+      const auto shfl_key = _mm512_kand(_mm512_kor(i_less_than_pn, j_less_than_pn),
+                                        le_sl2);
+      if (shfl_key == 0) continue;
+
+      const auto incr = _popcnt32(shfl_key);
+
+      auto vj_id    = _mm512_set1_epi64(j);
+      auto vkey_id  = _mm512_min_epi32(vi_id, vj_id);
+      auto vpart_id = _mm512_max_epi32(vi_id, vj_id);
+      vpart_id = _mm512_slli_epi64(vpart_id, 32);
+      auto vpart_key_id = _mm512_or_si512(vkey_id, vpart_id);
+
+      auto idx = _mm512_loadu_si512(shfl_table[shfl_key]);
+      vpart_key_id = _mm512_permutexvar_epi64(idx, vpart_key_id);
+      _mm512_storeu_si512(key_partner_pairs[number_of_pairs],
+                          vpart_key_id);
+      number_of_pairs += incr;
+#ifdef USE_GPU
+      vpart_key_id = _mm512_shuffle_epi32(vpart_key_id, 0xb1);
+      _mm512_storeu_si512(key_partner_pairs[number_of_pairs],
+                          vpart_key_id);
+      number_of_pairs += incr;
+#endif
+    }
+
+    // remaining pairs
+    for (int k = 0; k < 7; k++) {
+      for (int l = k + 1; l < 8; l++) {
+        const auto i_k = v[i + k];
+        const auto i_l = v[i + l];
+        if (i_k < pn || i_l < pn) RegisterInteractPair(q, i_k, i_l, S2);
+      }
+    }
+  }
+
+  // remaining i loop
+  for (int i = (in / 8) * 8 ; i < in; i++) {
     const int i1 = v[i];
     const double x1 = q[i1][X];
     const double y1 = q[i1][Y];
@@ -377,8 +538,8 @@ MeshList::SearchMesh(int index, Variables *vars, SimulationInfo *sinfo) {
       RegisterPair(i1, i2);
     }
   }
-#endif
 }
+#endif
 //----------------------------------------------------------------------
 void
 MeshList::index2pos(int index, int &ix, int &iy, int &iz) {
@@ -405,27 +566,21 @@ MeshList::RegisterPair(int index1, int index2) {
     i2 = index1;
   }
 
-#ifdef AVX2
   key_partner_pairs[number_of_pairs][KEY] = i1;
   key_partner_pairs[number_of_pairs][PARTNER] = i2;
-  number_of_pairs++;
-#ifdef USE_GPU
-  key_partner_pairs[number_of_pairs][KEY] = i2;
-  key_partner_pairs[number_of_pairs][PARTNER] = i1;
-  number_of_pairs++;
-#endif // end of USE_GPU
-#else // else AVX2
-  key_partner_pairs[number_of_pairs][KEY] = i1;
-  key_partner_pairs[number_of_pairs][PARTNER] = i2;
+#if !defined(AVX2) && !defined(AVX512)
   number_of_partners[i1]++;
+#endif
   number_of_pairs++;
+
 #if defined FX10 || defined USE_GPU
   key_partner_pairs[number_of_pairs][KEY] = i2;
   key_partner_pairs[number_of_pairs][PARTNER] = i1;
+#if !defined(AVX2) && !defined(AVX512)
   number_of_partners[i2]++;
+#endif
   number_of_pairs++;
-#endif // end of FX10 || USE_GPU
-#endif // end of AVX2
+#endif
 
   assert(number_of_pairs < PAIRLIST_SIZE);
 }
@@ -466,7 +621,7 @@ MeshList::ShowSortedList(Variables *vars) {
 //----------------------------------------------------------------------
 #ifdef AVX2
 void
-MeshList::MakeShflTable() {
+MeshList::MakeShflTable(void) {
   std::fill(shfl_table[0], shfl_table[16], 0);
   for (int i = 0; i < 16; i++) {
     int tbl_id = i;
@@ -476,6 +631,19 @@ MeshList::MakeShflTable() {
         shfl_table[i][cnt++] = 2 * j;
         shfl_table[i][cnt++] = 2 * j + 1;
       }
+      tbl_id >>= 1;
+    }
+  }
+}
+#elif defined AVX512
+void
+MeshList::MakeShflTable(void) {
+  std::fill(shfl_table[0], shfl_table[256], 0);
+  for (int i = 0; i < 256; i++) {
+    int tbl_id = i;
+    int cnt = 0;
+    for (int j = 0; j < 8; j++) {
+      if (tbl_id & 0x1) shfl_table[i][cnt++] = int64_t(j);
       tbl_id >>= 1;
     }
   }

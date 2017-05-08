@@ -597,8 +597,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
                                    3LL, 2LL, 1LL, 0LL);
     const auto num_loop = ((np - 1) / 8 + 1) * 8;
 
-    // initial force calculation
-    // load position
     auto vindex_a = _mm256_slli_epi32(_mm256_lddqu_si256((const __m256i*)(&sorted_list[kp])),
                                       2);
     auto mask_a = _mm512_cmp_epi64_mask(vk_idx,
@@ -608,7 +606,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
     auto vqyj = _mm512_i32gather_pd(vindex_a, &q[0][Y], 8);
     auto vqzj = _mm512_i32gather_pd(vindex_a, &q[0][Z], 8);
 
-    // calc distance
     auto vdx_a = _mm512_sub_pd(vqxj, vqxi);
     auto vdy_a = _mm512_sub_pd(vqyj, vqyi);
     auto vdz_a = _mm512_sub_pd(vqzj, vqzi);
@@ -618,7 +615,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
                                                vdy_a,
                                                _mm512_mul_pd(vdx_a, vdx_a)));
 
-    // calc force norm
     auto vr6 = _mm512_mul_pd(_mm512_mul_pd(vr2, vr2), vr2);
 
     auto vdf = _mm512_add_pd(_mm512_div_pd(_mm512_fmsub_pd(vc24, vr6, vc48),
@@ -630,7 +626,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
     vdf = _mm512_mask_blend_pd(mask_a, vzero, vdf);
 
     for (int k = 8; k < num_loop; k += 8) {
-      // load position
       auto vindex_b = _mm256_slli_epi32(_mm256_lddqu_si256((const __m256i*)(&sorted_list[kp + k])),
                                         2);
       vk_idx = _mm512_add_epi64(vk_idx, vpitch);
@@ -641,7 +636,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
       vqyj = _mm512_i32gather_pd(vindex_b, &q[0][Y], 8);
       vqzj = _mm512_i32gather_pd(vindex_b, &q[0][Z], 8);
 
-      // calc distance
       auto vdx_b = _mm512_sub_pd(vqxj, vqxi);
       auto vdy_b = _mm512_sub_pd(vqyj, vqyi);
       auto vdz_b = _mm512_sub_pd(vqzj, vqzi);
@@ -652,7 +646,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
                                             _mm512_mul_pd(vdx_b,
                                                           vdx_b)));
 
-      // write back j particle momentum
       vpxi = _mm512_fmadd_pd(vdf, vdx_a, vpxi);
       vpyi = _mm512_fmadd_pd(vdf, vdy_a, vpyi);
       vpzi = _mm512_fmadd_pd(vdf, vdz_a, vpzi);
@@ -669,7 +662,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
       _mm512_mask_i32scatter_pd(&p[0][Y], mask_a, vindex_a, vpyj, 8);
       _mm512_mask_i32scatter_pd(&p[0][Z], mask_a, vindex_a, vpzj, 8);
 
-      // calc force norm
       vr6 = _mm512_mul_pd(_mm512_mul_pd(vr2, vr2), vr2);
       vdf = _mm512_add_pd(_mm512_div_pd(_mm512_fmsub_pd(vc24, vr6, vc48),
                                         _mm512_mul_pd(_mm512_mul_pd(vr6, vr6),
@@ -679,7 +671,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
                                  vzero, vdf);
       vdf = _mm512_mask_blend_pd(mask_b, vzero, vdf);
 
-      // send to next
       vindex_a = vindex_b;
       mask_a   = mask_b;
       vdx_a    = vdx_b;
@@ -687,8 +678,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
       vdz_a    = vdz_b;
     } // end of k loop
 
-    // final write back momentum
-    // write back j particle momentum
     vpxi = _mm512_fmadd_pd(vdf, vdx_a, vpxi);
     vpyi = _mm512_fmadd_pd(vdf, vdy_a, vpyi);
     vpzi = _mm512_fmadd_pd(vdf, vdz_a, vpzi);
@@ -705,7 +694,6 @@ ForceCalculator::CalculateForceAVX512(Variables *vars, MeshList *mesh, Simulatio
     _mm512_mask_i32scatter_pd(&p[0][Y], mask_a, vindex_a, vpyj, 8);
     _mm512_mask_i32scatter_pd(&p[0][Z], mask_a, vindex_a, vpzj, 8);
 
-    // write back i particle momentum
     p[i][X] += _mm512_reduce_add_pd(vpxi);
     p[i][Y] += _mm512_reduce_add_pd(vpyi);
     p[i][Z] += _mm512_reduce_add_pd(vpzi);
