@@ -114,6 +114,10 @@ class Timer {
   double GetBackData(void) const {
     return data.back();
   }
+
+  double GetMeanOfLastElements(const int cnt = 5) const {
+    return std::accumulate(data.rbegin(), data.rbegin() + cnt, 0.0);
+  }
 };
 //----------------------------------------------------------------------
 typedef Timer<TimerCPUImpl> StopWatch;
