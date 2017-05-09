@@ -227,8 +227,8 @@ MDManager::CalculateForce(void) {
   swForce_gpu.Record();
 
   // show load imbalance
-  const auto tgpu = swForce_gpu.GetMeanOfLastElements();
-  const auto tcpu = swForce_cpu.GetMeanOfLastElements();
+  const auto tgpu = swForce_gpu.GetSumOfLastElements();
+  const auto tcpu = swForce_cpu.GetSumOfLastElements();
   tgpu_per_tcpu = tgpu / tcpu;
   if (profile_cnt == 100) {
     mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << "\n";
