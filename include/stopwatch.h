@@ -3,6 +3,7 @@
 //----------------------------------------------------------------------
 #include <vector>
 #include <fstream>
+#include <algorithm>
 #include <mpi.h>
 #ifdef USE_GPU
 #include <helper_cuda.h>
