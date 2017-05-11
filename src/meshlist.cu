@@ -1,5 +1,6 @@
 //----------------------------------------------------------------------
 #include "meshlist.h"
+#include "mpistream.h"
 #include "meshlist_kernels.cuh"
 //----------------------------------------------------------------------
 void
@@ -71,5 +72,27 @@ MeshList::MakeNeighborMeshId(void) {
         imesh_id++;
       }
   neigh_mesh_id.Host2Dev();
+}
+//----------------------------------------------------------------------
+void
+MeshList::SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm) {
+  key_pointer.Host2DevAsync(0, pn_gpu, strm);
+  number_of_partners.Host2DevAsync(0, pn_gpu, strm);
+  const auto number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
+                                                   number_of_partners.GetHostPtr() + pn_gpu,
+                                                   0);
+  sorted_list.Host2DevAsync(0, number_of_pairs_gpu, strm);
+  CheckTransposedListBufferSize(pn_gpu);
+}
+//----------------------------------------------------------------------
+void
+MeshList::CheckTransposedListBufferSize(const int pn_gpu) {
+  const auto max_number_of_partners = *std::max_element(number_of_partners.GetHostPtr(),
+                                                        number_of_partners.GetHostPtr() + pn_gpu);
+  if (max_number_of_partners * pn_gpu > PAIRLIST_SIZE) {
+    mout << "# ERROR! You should increase PAIRLIST_SIZE in mdconfig.h" << std::endl;
+    checkCudaErrors(cudaDeviceReset());
+    exit(1);
+  }
 }
 //----------------------------------------------------------------------

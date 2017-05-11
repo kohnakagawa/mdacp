@@ -48,6 +48,8 @@ private:
   CudaPtr<int> sorted_list;
   thrust::device_ptr<int> transposed_list;
   CudaPtr<int> neigh_mesh_id;
+  void MakeNeighborMeshId(void);
+  void CheckTransposedListBufferSize(const int pn_gpu);
 #else
   int key_pointer[N];
   int number_of_partners[N];
@@ -98,7 +100,6 @@ public:
   void SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm = 0);
   void TransposeSortedList(const int pn_gpu, cudaStream_t strm = 0);
   void MakeTransposedList(Variables *vars, SimulationInfo *sinfo, const int pn_gpu, cudaStream_t strm = 0);
-  void MakeNeighborMeshId(void);
 #else
   int *GetSortedList(void) {return sorted_list;};
   int* GetKeyPointerP(void) {return key_pointer;};
