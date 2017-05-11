@@ -231,7 +231,7 @@ MDManager::CalculateForce(void) {
   const auto tcpu = swForce_cpu.GetSumOfLastElements();
   tgpu_per_tcpu = tgpu / tcpu;
   if (profile_cnt == 100) {
-    mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << "\n";
+    mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << std::endl;
     profile_cnt = 0;
   }
   profile_cnt++;
@@ -363,18 +363,43 @@ MDManager::MakePairList(void) {
     }
     SendBorderParticlesSub(dir);
   }
+
+#ifdef USE_GPU
+  AdjustCPUGPUWorkBalance();
+
+  // create mesh
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->MakeMeshForSearch();
+  }
+
+  // make mesh gpu
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->SearchMeshAndMakeTransposedListGPU(pn_gpu[i], strms[i]);
+  }
+
+  // make mesh cpu
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->SearchMeshAndMakeSortedListCPU();
+  }
+
+  // cpu gpu sync
+  checkCudaErrors(cudaDeviceSynchronize());
+#else
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->MakePairList();
   }
+#endif
 
 #ifdef USE_GPU
-  AdjustCPUGPUWorkBalance();
+  /*AdjustCPUGPUWorkBalance();
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->SendNeighborInfoToGPUAsync(pn_gpu[i], strms[i]);
     mdv[i]->TransposeSortedList(pn_gpu[i], strms[i]);
   }
-  checkCudaErrors(cudaDeviceSynchronize());
+  checkCudaErrors(cudaDeviceSynchronize());*/
 #endif
 }
 //----------------------------------------------------------------------
@@ -556,7 +581,7 @@ MDManager::ExecuteAll(Executor *ex) {
 #ifdef USE_GPU
 void
 MDManager::AdjustCPUGPUWorkBalance(void) {
-  static double work_balance = 0.7;
+  static double work_balance = 0.8;
   work_balance /= (1.0 - tgpu_per_tcpu) * work_balance + tgpu_per_tcpu;
   for (int i = 0; i < num_threads; i++) {
     pn_gpu[i] = int(mdv[i]->GetParticleNumber() * work_balance);

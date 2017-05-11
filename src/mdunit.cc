@@ -212,3 +212,24 @@ MDUnit::ChangeScale(double alpha) {
   mesh->ChangeScale(sinfo, myrect);
 }
 //----------------------------------------------------------------------
+#ifdef USE_GPU
+void
+MDUnit::MakeMeshForSearch(void) {
+  mesh->Sort(vars, sinfo, myrect);
+  plist->Init(vars, sinfo);
+  mesh->MakeMeshForSearch(vars, sinfo, myrect);
+}
+//----------------------------------------------------------------------
+void
+MDUnit::SearchMeshAndMakeSortedListCPU(void) {
+  mesh->SearchMeshAll(vars, sinfo);
+  mesh->MakeSortedList(vars);
+}
+//----------------------------------------------------------------------
+void
+MDUnit::SearchMeshAndMakeTransposedListGPU(const int pn_gpu, cudaStream_t strm) {
+  mesh->MakeTransposedList(vars, sinfo, pn_gpu, strm);
+}
+//----------------------------------------------------------------------
+#endif
+//----------------------------------------------------------------------

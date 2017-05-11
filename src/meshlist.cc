@@ -13,7 +13,9 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
   number_of_constructions = 0;
   sort_interval = 10;
 
+#ifndef USE_GPU
   mesh_index = NULL;
+#endif
   mesh_index2 = NULL;
   mesh_particle_number = NULL;
   ChangeScale(sinfo, r);
@@ -23,6 +25,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 #endif
 
 #ifdef USE_GPU
+  sortbuf.Allocate(N);
   key_pointer.Allocate(N);
   number_of_partners.Allocate(N);
   sorted_list.Allocate(PAIRLIST_SIZE);
@@ -31,7 +34,9 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 }
 //----------------------------------------------------------------------
 MeshList::~MeshList(void) {
+#ifndef USE_GPU
   if (NULL != mesh_index) delete [] mesh_index;
+#endif
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
 
@@ -42,7 +47,9 @@ MeshList::~MeshList(void) {
 //----------------------------------------------------------------------
 void
 MeshList::ChangeScale(SimulationInfo *sinfo, MDRect &myrect) {
+#ifndef USE_GPU
   if (NULL != mesh_index) delete [] mesh_index;
+#endif
   if (NULL != mesh_index2) delete [] mesh_index2;
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
   double wx = myrect.GetWidth(X);
@@ -61,21 +68,46 @@ MeshList::ChangeScale(SimulationInfo *sinfo, MDRect &myrect) {
   mz = static_cast <int> (wz / mesh_size_z) + 2;
 
   number_of_mesh = mx * my * mz;
+#ifdef USE_GPU
+  mesh_index.Allocate(number_of_mesh);
+#else
   mesh_index = new int[number_of_mesh];
+#endif
   mesh_index2 = new int[number_of_mesh];
   mesh_particle_number = new int[number_of_mesh];
 
+#ifdef USE_GPU
+  neigh_mesh_id.Allocate(27 * number_of_mesh);
+  MakeNeighborMeshId();
+#endif
 }
 //----------------------------------------------------------------------
 void
-MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
+MeshList::ClearPartners(Variables *vars) {
   number_of_pairs = 0;
   const int pn = vars->GetTotalParticleNumber();
   for (int i = 0; i < pn; i++) {
     number_of_partners[i] = 0;
   }
+}
+//----------------------------------------------------------------------
+void
+MeshList::MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
+  ClearPartners(vars);
   MakeListMesh(vars, sinfo, myrect);
   //MakeListBruteforce(vars,sinfo,myrect);
+  MakeSortedList(vars);
+}
+//----------------------------------------------------------------------
+void
+MeshList::MakeMeshForSearch(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
+  ClearPartners(vars);
+  MakeMesh(vars, sinfo, myrect);
+}
+//----------------------------------------------------------------------
+void
+MeshList::MakeSortedList(Variables *vars) {
+  const int pn = vars->GetTotalParticleNumber();
 
   const int s = number_of_pairs;
 #if defined AVX2 || defined AVX512
@@ -126,8 +158,7 @@ MeshList::MakeListBruteforce(Variables *vars, SimulationInfo *sinfo, MDRect &myr
 }
 //----------------------------------------------------------------------
 void
-MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
-  MakeMesh(vars, sinfo, myrect);
+MeshList::SearchMeshAll(Variables *vars, SimulationInfo *sinfo) {
   for (int i = 0; i < number_of_mesh; i++) {
 #ifdef AVX2
     SearchMeshAVX2(i, vars, sinfo);
@@ -137,6 +168,12 @@ MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
     SearchMesh(i, vars, sinfo);
 #endif
   }
+}
+//----------------------------------------------------------------------
+void
+MeshList::MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
+  MakeMesh(vars, sinfo, myrect);
+  SearchMeshAll(vars, sinfo);
 }
 //----------------------------------------------------------------------
 void
@@ -548,11 +585,6 @@ MeshList::index2pos(int index, int &ix, int &iy, int &iz) {
   iy = index % my;
   index /= my;
   iz = index;
-}
-//----------------------------------------------------------------------
-int
-MeshList::pos2index(int ix, int iy, int iz) {
-  return mx * my * iz + mx * iy + ix;
 }
 //----------------------------------------------------------------------
 inline void

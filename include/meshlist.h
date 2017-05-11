@@ -31,16 +31,23 @@ private:
   void SearchMeshAVX512(int index, Variables *vars, SimulationInfo *sinfo);
 #endif
   int key_partner_pairs[PAIRLIST_SIZE][2];
+
+#ifdef USE_GPU
+  CudaPtr<int> mesh_index;
+  CudaPtr<int> sortbuf;
+#else
   int * mesh_index;
+  int sortbuf[N];
+#endif
   int * mesh_index2;
   int * mesh_particle_number;
-  int sortbuf[N];
 
 #ifdef USE_GPU
   CudaPtr<int> key_pointer;
   CudaPtr<int> number_of_partners;
   CudaPtr<int> sorted_list;
   thrust::device_ptr<int> transposed_list;
+  CudaPtr<int> neigh_mesh_id;
 #else
   int key_pointer[N];
   int number_of_partners[N];
@@ -54,10 +61,14 @@ private:
   inline void RegisterInteractPair(const double q[][D], int index1, int index2, const double S2);
   int sort_interval;
 
+  void ClearPartners(Variables *vars);
   void MakeListMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
   void MakeMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
+
   inline void index2pos(int index, int &ix, int &iy, int &iz);
-  inline int pos2index(int ix, int iy, int iz);
+  int pos2index(int ix, int iy, int iz) {
+    return mx * my * iz + mx * iy + ix;
+  }
   void SearchMesh(int index, Variables *vars, SimulationInfo *sinfo);
   void AppendList(int mx, int my, int mz, std::vector<int> &v);
 
@@ -86,6 +97,8 @@ public:
   int* GetDevPtrTransposedList(void) {return thrust::raw_pointer_cast(transposed_list);};
   void SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm = 0);
   void TransposeSortedList(const int pn_gpu, cudaStream_t strm = 0);
+  void MakeTransposedList(Variables *vars, SimulationInfo *sinfo, const int pn_gpu, cudaStream_t strm = 0);
+  void MakeNeighborMeshId(void);
 #else
   int *GetSortedList(void) {return sorted_list;};
   int* GetKeyPointerP(void) {return key_pointer;};
@@ -97,6 +110,9 @@ public:
   void ClearNumberOfConstructions(void) {number_of_constructions = 0;};
 
   void MakeList(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
+  void MakeMeshForSearch(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
+  void SearchMeshAll(Variables *vars, SimulationInfo *sinfo);
+  void MakeSortedList(Variables *vars);
   void MakeListBruteforce(Variables *vars, SimulationInfo *sinfo, MDRect &myrect);
   void ShowPairs(void);
   void ShowSortedList(Variables *vars);
