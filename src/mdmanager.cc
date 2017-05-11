@@ -365,6 +365,9 @@ MDManager::MakePairList(void) {
   }
 
 #ifdef USE_GPU
+  static StopWatch swPair_cpu(GetRank(), "pair_cpu");
+  static StopWatchCuda swPair_gpu(GetRank(), "pair_gpu");
+
   AdjustCPUGPUWorkBalance();
 
   // create mesh
@@ -373,19 +376,25 @@ MDManager::MakePairList(void) {
     mdv[i]->MakeMeshForSearch();
   }
 
+  // start timer
+  swPair_gpu.Start(); swPair_cpu.Start();
+
   // make mesh gpu
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->SearchMeshAndMakeTransposedListGPU(pn_gpu[i], strms[i]);
   }
+  swPair_gpu.Stop();
 
   // make mesh cpu
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->SearchMeshAndMakeSortedListCPU();
   }
+  swPair_cpu.Stop();
 
   // cpu gpu sync
   checkCudaErrors(cudaDeviceSynchronize());
+  swPair_gpu.Record();
 #else
   #pragma omp parallel for schedule(static)
   for (int i = 0; i < num_threads; i++) {
