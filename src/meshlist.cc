@@ -69,9 +69,9 @@ MeshList::ChangeScale(SimulationInfo *sinfo, MDRect &myrect) {
 
   number_of_mesh = mx * my * mz;
 #ifdef USE_GPU
-  mesh_index.Allocate(number_of_mesh);
+  mesh_index.Allocate(number_of_mesh + 1);
 #else
-  mesh_index = new int[number_of_mesh];
+  mesh_index = new int[number_of_mesh + 1];
 #endif
   mesh_index2 = new int[number_of_mesh];
   mesh_particle_number = new int[number_of_mesh];
@@ -251,7 +251,7 @@ MeshList::MakeMesh(Variables *vars, SimulationInfo *sinfo, MDRect &myrect) {
   }
   mesh_index[0] = 0;
   int sum = 0;
-  for (int i = 0; i < number_of_mesh - 1; i++) {
+  for (int i = 0; i < number_of_mesh; i++) {
     sum += mesh_particle_number[i];
     mesh_index[i + 1] = sum;
   }

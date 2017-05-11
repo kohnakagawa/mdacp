@@ -32,30 +32,38 @@ SearchMeshAllCUDA(const VecCuda* __restrict__ q,
                   const double search_length2,
                   const int    pn_gpu) {
   extern __shared__ VecCuda pos_buffer[];
+  const auto tid_loc   = threadIdx.x;
   const auto i_cell_id = blockIdx.x;
-  const auto tid       = mesh_index[i_cell_id] + threadIdx.x;
-  const auto i_ptcl_id = sortbuf[tid];
-  const auto qi        = q[i_ptcl_id];
+  const auto tid       = mesh_index[i_cell_id    ] + tid_loc;
   const auto i_end_id  = mesh_index[i_cell_id + 1];
+
+  int i_ptcl_id = -1;
+  VecCuda qi    = {0.0};
+  if (tid < i_end_id) {
+    i_ptcl_id = sortbuf[tid];
+    qi        = q[i_ptcl_id];
+  }
 
   int n_neigh = 0;
   for (int cid = 0; cid < 27; cid++) {
     const auto j_cell_id  = neigh_mesh_id[27 * i_cell_id + cid];
-    const auto j_beg_id   = mesh_index[j_cell_id];
+    const auto j_beg_id   = mesh_index[j_cell_id    ];
+    const auto j_end_id   = mesh_index[j_cell_id + 1];
+    const auto num_loop_j = j_end_id - j_beg_id;
 
     __syncthreads();
-    auto j_ptcl_id = sortbuf[j_beg_id + threadIdx.x];
-    pos_buffer[threadIdx.x].x = q[j_ptcl_id].x;
-    pos_buffer[threadIdx.x].y = q[j_ptcl_id].y;
-    pos_buffer[threadIdx.x].z = q[j_ptcl_id].z;
+    if (tid_loc < num_loop_j) {
+      const auto j_ptcl_id = sortbuf[j_beg_id + tid_loc];
+      pos_buffer[tid_loc].x = q[j_ptcl_id].x;
+      pos_buffer[tid_loc].y = q[j_ptcl_id].y;
+      pos_buffer[tid_loc].z = q[j_ptcl_id].z;
+    }
     __syncthreads();
 
     if (tid < i_end_id) {
-      const auto num_loop_j = mesh_index[j_cell_id + 1] - j_beg_id;
       for (int j = 0; j < num_loop_j; j++) {
-        j_ptcl_id = sortbuf[j + j_beg_id];
+        const auto j_ptcl_id = sortbuf[j_beg_id + j];
         if (i_ptcl_id == j_ptcl_id || i_ptcl_id >= pn_gpu) continue;
-
         const auto drx = qi.x - pos_buffer[j].x;
         const auto dry = qi.y - pos_buffer[j].y;
         const auto drz = qi.z - pos_buffer[j].z;
