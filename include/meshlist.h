@@ -8,9 +8,6 @@
 #include "mdrect.h"
 #ifdef USE_GPU
 #include "cuda_ptr.h"
-#include <thrust/device_ptr.h>
-#include <thrust/device_malloc.h>
-#include <thrust/device_free.h>
 #endif
 //----------------------------------------------------------------------
 class MeshList {
@@ -41,6 +38,8 @@ private:
   CudaPtr<int> number_of_partners;
   CudaPtr<int> sorted_list;
   thrust::device_ptr<int> transposed_list;
+  void AllocateOnGPU(void);
+  void DeallocateOnGPU(void);
 #else
   int key_pointer[N];
   int number_of_partners[N];

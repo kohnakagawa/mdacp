@@ -65,20 +65,41 @@ CalculateForceReactlessCUDA(const VecCuda* __restrict__ q,
   const int* ptr_list = &transposed_list[tid];
 
   auto pf = p[tid];
+
+  auto j = __ldg(ptr_list);
+  ptr_list += pn;
+  auto dxa = q[j].x - qi.x;
+  auto dya = q[j].y - qi.y;
+  auto dza = q[j].z - qi.z;
+  double df = 0.0, dxb = 0.0, dyb = 0.0, dzb = 0.0;
   for (int32_t k = 0; k < np; k++) {
-    const auto j = __ldg(ptr_list);
-    const auto dx = q[j].x - qi.x;
-    const auto dy = q[j].y - qi.y;
-    const auto dz = q[j].z - qi.z;
+    const auto dx = dxa;
+    const auto dy = dya;
+    const auto dz = dza;
     const auto r2 = dx * dx + dy * dy + dz * dz;
-    const auto r6 = r2 * r2 * r2;
-    auto df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
-    if (r2 > CL2) df = 0.0;
-    pf.x += df * dx;
-    pf.y += df * dy;
-    pf.z += df * dz;
+
+    j = __ldg(ptr_list);
     ptr_list += pn;
+
+    dxa = q[j].x - qi.x;
+    dya = q[j].y - qi.y;
+    dza = q[j].z - qi.z;
+
+    pf.x += df * dxb;
+    pf.y += df * dyb;
+    pf.z += df * dzb;
+
+    const auto r6 = r2 * r2 * r2;
+    df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+    if (r2 > CL2) df = 0.0;
+    dxb = dx;
+    dyb = dy;
+    dzb = dz;
   }
+  pf.x += df * dxb;
+  pf.y += df * dyb;
+  pf.z += df * dzb;
+
   p[tid] = pf;
 }
 //----------------------------------------------------------------------

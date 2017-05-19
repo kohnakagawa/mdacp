@@ -23,10 +23,7 @@ MeshList::MeshList(SimulationInfo *sinfo, MDRect &r) {
 #endif
 
 #ifdef USE_GPU
-  key_pointer.Allocate(N);
-  number_of_partners.Allocate(N);
-  sorted_list.Allocate(PAIRLIST_SIZE);
-  transposed_list = thrust::device_malloc<int>(PAIRLIST_SIZE);
+  AllocateOnGPU();
 #endif
 }
 //----------------------------------------------------------------------
@@ -36,7 +33,7 @@ MeshList::~MeshList(void) {
   if (NULL != mesh_particle_number) delete [] mesh_particle_number;
 
 #ifdef USE_GPU
-  thrust::device_free(transposed_list);
+  DeallocateOnGPU();
 #endif
 }
 //----------------------------------------------------------------------
@@ -646,28 +643,6 @@ MeshList::MakeShflTable(void) {
       if (tbl_id & 0x1) shfl_table[i][cnt++] = int64_t(j);
       tbl_id >>= 1;
     }
-  }
-}
-#endif
-//----------------------------------------------------------------------
-#ifdef USE_GPU
-void
-MeshList::SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm) {
-  key_pointer.Host2DevAsync(0, pn_gpu, strm);
-  number_of_partners.Host2DevAsync(0, pn_gpu, strm);
-  const auto number_of_pairs_gpu = std::accumulate(number_of_partners.GetHostPtr(),
-                                                   number_of_partners.GetHostPtr() + pn_gpu,
-                                                   0);
-  sorted_list.Host2DevAsync(0, number_of_pairs_gpu, strm);
-
-  const auto max_number_of_partners = *std::max_element(number_of_partners.GetHostPtr(),
-                                                        number_of_partners.GetHostPtr() + pn_gpu);
-  if (max_number_of_partners * pn_gpu > PAIRLIST_SIZE) {
-    mout << "# Expand transposed_list size at " << __FILE__ << " " << __LINE__ << std::endl;
-    mout << "# WARNING! You should increase PAIRLIST_SIZE in mdconfig.h" << std::endl;
-    checkCudaErrors(cudaStreamSynchronize(strm));
-    thrust::device_free(transposed_list);
-    transposed_list = thrust::device_malloc<int>(2 * max_number_of_partners * pn_gpu);
   }
 }
 #endif
