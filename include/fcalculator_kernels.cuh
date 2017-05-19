@@ -69,7 +69,7 @@ CalculateForceReactlessCUDA(const VecCuda* __restrict__ q,
   auto pf = p[tid];
   int32_t k = np & 0x1;
   if (k) {
-    const auto j = __ldg(ptr_list);
+    const auto j = *ptr_list;
     const auto dx = q[j].x - qi.x;
     const auto dy = q[j].y - qi.y;
     const auto dz = q[j].z - qi.z;
@@ -87,8 +87,8 @@ CalculateForceReactlessCUDA(const VecCuda* __restrict__ q,
   }
 
   for (; k < np; k += 2) {
-    const auto j0 = __ldg(ptr_list);
-    const auto j1 = __ldg(ptr_list + pn);
+    const auto j0 = *ptr_list;
+    const auto j1 = *(ptr_list + pn);
 
     const auto dx0 = q[j0].x - qi.x; const auto dx1 = q[j1].x - qi.x;
     const auto dy0 = q[j0].y - qi.y; const auto dy1 = q[j1].y - qi.y;
