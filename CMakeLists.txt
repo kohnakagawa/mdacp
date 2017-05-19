@@ -10,12 +10,18 @@ include_directories(./include)
 # for SIMD optimization
 if (USE_AVX2)
   add_definitions(-DAVX2)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=core-avx2")
+  set(OPT_FLAGS "-xCORE-AVX2 -ipo")
 elseif(USE_AVX512)
   # only support icpc
   add_definitions(-DAVX512)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -xMIC-AVX512")
+  set(OPT_FLAGS "-xMIC-AVX512 -ipo")
 endif()
+
+# add warning flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+
+# add OpenMP flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 if (USE_GPU_CUDA)
   find_package(CUDA REQUIRED)
@@ -45,11 +51,13 @@ else ()
   list(REMOVE_ITEM mdacp_srcs ${dev_info_cc_src})
 endif()
 
-# enable C++11 and OpenMP
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp")
+# enable C++11
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+# add opt flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPT_FLAGS}")
 
 add_executable(mdacp ${mdacp_srcs})
-# target_link_libraries(mdacp mpi mpi++) # for sekirei SGI MPT
 
 if (USE_GPU_CUDA)
   target_link_libraries(mdacp cudart)

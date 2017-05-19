@@ -6,21 +6,30 @@ efficient implementations of classical molecular dynamics (MD) method
 for the Lennard-Jones particle systems.
 
 ## Usage
-### CPU only
+### CPU only with AVX2
 
 ```sh
 $ mkdir build
 $ cd build
-$ cmake ../ -DCMAKE_CXX_COMPILER=icpc -DCMAKE_C_COMPILER=icc -DUSE_GPU_CUDA=false
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=mpicc -DUSE_AVX2=true
 $ make
 ```
 
-### CUDA support
+### CPU & GPU with AVX2
 
 ```sh
 $ mkdir build
 $ cd build
-$ cmake ../ -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DUSE_GPU_CUDA=true
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=gcc -DUSE_GPU_CUDA=true -DUSE_AVX2=true
+$ make
+```
+
+### MIC
+
+```sh
+$ mkdir build
+$ cd build
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpiicpc -DCMAKE_C_COMPILER=mpiicc -DUSE_AVX512=true
 $ make
 ```
 
@@ -36,4 +45,3 @@ http://mdacp.sourceforge.net/
 
 - Nobuyasu Ito
     - Department of Applied Physics, School of Engineering, The University of Tokyo
-
