@@ -9,9 +9,11 @@ lane_id() {
 //----------------------------------------------------------------------
 template <typename T> __device__ __forceinline__ T
 warp_segment_reduce(T var) {
-  for (int offset = (warpSize >> 1); offset > 0; offset >>= 1) {
-    var += __shfl_down(var, offset);
-  }
+  var += __shfl_down(var, 0x10);
+  var += __shfl_down(var, 0x8);
+  var += __shfl_down(var, 0x4);
+  var += __shfl_down(var, 0x2);
+  var += __shfl_down(var, 0x1);
   return var;
 }
 //----------------------------------------------------------------------
