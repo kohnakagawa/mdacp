@@ -21,6 +21,7 @@ CalculateForceWarpUnrollReactlessCUDA(const VecCuda* __restrict__ q,
   const auto lid = lane_id();
   const auto qi  = q[i_ptcl_id];
   const auto np  = number_of_partners[i_ptcl_id];
+  const auto C2_8 = C2 * 8.0;
 
   VecCuda pf = {0.0};
   if (lid == 0) pf = p[i_ptcl_id];
@@ -32,7 +33,10 @@ CalculateForceWarpUnrollReactlessCUDA(const VecCuda* __restrict__ q,
     const auto dz = q[j].z - qi.z;
     const auto r2 = dx * dx + dy * dy + dz * dz;
     const auto r6 = r2 * r2 * r2;
-    auto df = ((24.0 * r6 - 48.0) / (r6 * r6 * r2) + C2 * 8.0) * dt;
+    const auto r14 = r6 * r6 * r2;
+    const auto invr14 = 1.0 / r14;
+    const auto df_numera = 24.0 * r6 - 48.0;
+    auto df = (df_numera * invr14 + C2_8) * dt;
     if (r2 > CL2) df = 0.0;
     pf.x += df * dx;
     pf.y += df * dy;
