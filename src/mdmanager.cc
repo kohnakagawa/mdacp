@@ -558,6 +558,9 @@ void
 MDManager::AdjustCPUGPUWorkBalance(void) {
   static double work_balance = 0.7;
   work_balance /= (1.0 - tgpu_per_tcpu) * work_balance + tgpu_per_tcpu;
+
+  if (work_balance <= 0.0) work_balance = 0.0;
+  if (work_balance >= 1.0) work_balance = 1.0;
   for (int i = 0; i < num_threads; i++) {
     pn_gpu[i] = int(mdv[i]->GetParticleNumber() * work_balance);
   }
