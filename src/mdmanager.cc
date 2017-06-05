@@ -37,7 +37,7 @@ MDManager::MDManager(int &argc, char ** &argv) {
   mout << "# " << dev_cnt << "GPUs are found." << std::endl;
   if (argc > 2) {
     num_gpus_per_node = std::atoi(argv[2]);
-    if (num_gpus_per_node < 0) {
+    if (num_gpus_per_node <= 0) {
       mout << "Error: num_gpus_per_node should be positive." << std::endl;
       exit(1);
     }
