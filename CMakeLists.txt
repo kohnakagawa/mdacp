@@ -45,8 +45,6 @@ if (USE_GPU_CUDA)
   cuda_compile(meshlist_o ./src/meshlist.cu)
   set(mdacp_srcs ${mdacp_srcs} ${fcalculator_o})
   set(mdacp_srcs ${mdacp_srcs} ${meshlist_o})
-
-  add_subdirectory(unit_test)
 else ()
   file(GLOB dev_info_cc_src ./src/device_info.cc)
   list(REMOVE_ITEM mdacp_srcs ${dev_info_cc_src})
