@@ -15,12 +15,23 @@ $ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=mpicc -DUSE_AVX2=true
 $ make
 ```
 
-### CPU & GPU with AVX2
+### GPU & CPU with AVX2 @ sekirei
 
 ```sh
+$ source env/sekirei.sh
 $ mkdir build
 $ cd build
 $ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=gcc -DUSE_GPU_CUDA=true -DUSE_AVX2=true
+$ make
+```
+
+### GPU & CPU with AVX2 @ Reedbush-L
+
+```sh
+$ source env/reedbush-l.sh
+$ mkdir build
+$ cd build
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=mpicc -DUSE_GPU_CUDA=true -DUSE_AVX2=true
 $ make
 ```
 
