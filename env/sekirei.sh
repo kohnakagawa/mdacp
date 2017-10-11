@@ -1,4 +1,4 @@
 #!/bin/sh
 
 module purge
-module intel cuda mpt
+module load intel cuda mpt
