@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <numeric>
 #include <mpi.h>
 #ifdef USE_GPU
 #include <helper_cuda.h>

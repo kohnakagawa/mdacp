@@ -2,6 +2,7 @@
 #include "meshlist.h"
 #include "mpistream.h"
 #include "meshlist_kernels.cuh"
+#include <numeric>
 #include <thrust/device_malloc.h>
 #include <thrust/device_free.h>
 //----------------------------------------------------------------------
