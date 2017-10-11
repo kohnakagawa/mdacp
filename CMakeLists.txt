@@ -34,7 +34,8 @@ if (USE_GPU_CUDA)
   # set(CUDA_PATH /usr/local/cuda)
   set(CUDA_PATH $ENV{CUDA_PATH}) # for sekirei
 
-  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_35 -Xptxas -v")
+  # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_35 -Xptxas -v")
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_60 -Xptxas -v")
 
   link_directories(${CUDA_PATH}/lib64)
   include_directories(${CUDA_PATH}/include)
