@@ -34,12 +34,18 @@ if (USE_GPU_CUDA)
   # set(CUDA_PATH /usr/local/cuda)
   set(CUDA_PATH $ENV{CUDA_PATH}) # for sekirei
 
-  # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_35 -Xptxas -v")
-  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_60 -Xptxas -v")
+  # NOTE: CMake official FindCUDA.cmake does not support -isystem /path/include when compiling device codes.
+  # So, we explicitly add -isystem /path/include to CUDA_NVCC_FLAGS
+  set(CURT_DIR ${CUDA_PATH}/include)
+  set(CUHELPER_DIR ${CUDA_PATH}/samples/common/inc)
+  set(INCLUDE_SYSTEM_DIRS "-isystem ${CURT_DIR} -isystem ${CUHELPER_DIR}")
+
+  # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${INCLUDE_SYSTEM_DIRS} -std=c++11 -O3 -arch=sm_35 -Xptxas -v")
+  set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} ${INCLUDE_SYSTEM_DIRS} -std=c++11 -O3 -arch=sm_60 -Xptxas -v")
 
   link_directories(${CUDA_PATH}/lib64)
-  include_directories(SYSTEM ${CUDA_PATH}/include)
-  include_directories(SYSTEM ${CUDA_PATH}/samples/common/inc)
+  include_directories(SYSTEM ${CURT_DIR})
+  include_directories(SYSTEM ${CUHELPER_DIR})
 
   cuda_compile(fcalculator_o ./src/fcalculator.cu)
   cuda_compile(meshlist_o ./src/meshlist.cu)
