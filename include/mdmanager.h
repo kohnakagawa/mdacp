@@ -2,9 +2,6 @@
 #ifndef mdmanager_h
 #define mdmanager_h
 #include <vector>
-#ifdef USE_GPU
-#include <cuda_runtime.h>
-#endif
 #include "mdunit.h"
 #include "parainfo.h"
 #include "simulationinfo.h"
@@ -32,8 +29,6 @@ private:
   bool IsPairListExpired(void);
   double s_time;
 #ifdef USE_GPU
-  std::vector<cudaStream_t> strms;
-  std::vector<int> pn_gpu;
   double tgpu_per_tcpu = 1.0;
   void AdjustCPUGPUWorkBalance(void);
 #endif

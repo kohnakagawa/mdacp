@@ -14,13 +14,13 @@
 #endif
 //----------------------------------------------------------------------
 void
-ForceCalculator::UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo) {
+ForceCalculator::UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo, const int beg) {
   const double dt2 = sinfo->TimeStep * 0.5;
   const int pn = vars->GetParticleNumber();
   double (*q)[D] = vars->q;
   double (*p)[D] = vars->p;
   int *type = vars->type;
-  for (int i = 0; i < pn; i++) {
+  for (int i = beg; i < pn; i++) {
     //if (type[i] != 0)continue;
     q[i][X] += p[i][X] * dt2;
     q[i][Y] += p[i][Y] * dt2;
@@ -984,13 +984,13 @@ ForceCalculator::HeatbathZeta(Variables *vars, double current_temperature, Simul
 }
 //----------------------------------------------------------------------
 void
-ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo) {
+ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const int beg) {
   const double dt2 = sinfo->TimeStep * 0.5;
   const int pn = vars->GetParticleNumber();
   double (*p)[D] = vars->p;
 
   const double exp1 = exp(-dt2 * vars->Zeta);
-  for (int i = 0; i < pn; i++) {
+  for (int i = beg; i < pn; i++) {
     for (int d = 0; d < D; d++) {
       p[i][d] *= exp1;
     }
@@ -998,7 +998,7 @@ ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo) {
 }
 //----------------------------------------------------------------------
 void
-ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo) {
+ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo, const int beg) {
 	static std::mt19937 mt(1);
   const double dt = sinfo->TimeStep;
   const int pn = vars->GetParticleNumber();
@@ -1007,7 +1007,7 @@ ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo) {
   const double T = sinfo->AimedTemperature;
   const double hb_D = sqrt(2.0 * hb_gamma * T / dt);
 	std::normal_distribution<double> nd(hb_D);
-  for (int i = 0; i < pn; i++) {
+  for (int i = beg; i < pn; i++) {
     for (int d = 0; d < D; d++) {
       const double r = nd(mt);
       p[i][d] += (-hb_gamma * p[i][d] + r) * dt;

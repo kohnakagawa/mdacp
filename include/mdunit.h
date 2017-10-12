@@ -16,6 +16,9 @@
 #include "pairlist.h"
 #include "observer.h"
 #include "fcalculator.h"
+#ifdef USE_GPU
+#include "helper_macros.h"
+#endif
 //----------------------------------------------------------------------
 class MDUnit;
 //----------------------------------------------------------------------
@@ -34,6 +37,10 @@ private:
   const int id;
   std::vector<int> border_particles[MAX_DIR];
   MDRect myrect;
+#ifdef USE_GPU
+  cudaStream_t strm = 0;
+  int pn_gpu = 0;
+#endif
 public:
   MDUnit (int id_, SimulationInfo *si, ParaInfo *pi);
   ~MDUnit(void);
@@ -59,18 +66,32 @@ public:
   void Langevin(void) {ForceCalculator::Langevin(vars, sinfo);};
 
 #ifdef USE_GPU
-  void CalculateForceGPU(const int pn_gpu, cudaStream_t strm) {
-    ForceCalculator::CalculateForceGPU(vars, mesh, sinfo, pn_gpu, strm);
+  void SendNeighborInfoToGPUAsync(void) {mesh->SendNeighborInfoToGPUAsync(pn_gpu, strm);};
+  void TransposeSortedList(void) {mesh->TransposeSortedList(pn_gpu, strm);};
+  void UpdateParticleNumberGPU(const double work_balance) {
+    pn_gpu = int(work_balance * vars->GetParticleNumber());
   };
-  void CalculateForceCPU(const int beg) {
-#ifdef AVX2
-    ForceCalculator::CalculateForceAVX2Reactless(vars, mesh, sinfo, beg);
-#else
-    ForceCalculator::CalculateForceReactless(vars, mesh, sinfo, beg);
-#endif
-  };
-  void SendNeighborInfoToGPUAsync(const int pn_gpu, cudaStream_t strm = 0) {mesh->SendNeighborInfoToGPUAsync(pn_gpu, strm);};
-  void TransposeSortedList(const int pn_gpu, cudaStream_t strm = 0) {mesh->TransposeSortedList(pn_gpu, strm);};
+  void SendParticlesHostToDev(void) {
+    ForceCalculator::SendParticlesHostToDev(vars, pn_gpu, strm);
+  }
+  void SendParticlesDevToHost(void) {
+    ForceCalculator::SendParticlesDevToHost(vars, pn_gpu, strm);
+  }
+
+#define DEFINE_CPU_GPU_MEMBERS_FCALC(FNAME, WRAPPER_ARGS, HOST_ARGS, DEV_ARGS) \
+  void MDACP_CONCAT(FNAME, CPU) WRAPPER_ARGS {                          \
+    MDACP_NAMESPACE_AT(ForceCalculator, FNAME) HOST_ARGS;		\
+  };                                                                    \
+  void MDACP_CONCAT(FNAME, GPU) WRAPPER_ARGS {                          \
+    MDACP_NAMESPACE_AT(ForceCalculator, FNAME) DEV_ARGS;                \
+  }
+
+  DEFINE_CPU_GPU_MEMBERS_FCALC(CalculateForce, (void), (vars, mesh, sinfo, pn_gpu), (vars, mesh, sinfo, pn_gpu, strm));
+  DEFINE_CPU_GPU_MEMBERS_FCALC(UpdatePositionHalf, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
+  DEFINE_CPU_GPU_MEMBERS_FCALC(HeatbathMomenta, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
+  DEFINE_CPU_GPU_MEMBERS_FCALC(Langevin, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
+#undef DEFINE_CPU_GPU_MEMBERS_FCALC
+
 #endif
 
   void MakeBufferForSendingParticle(const int dir);

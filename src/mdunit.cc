@@ -31,12 +31,21 @@ MDUnit::MDUnit(int id_, SimulationInfo *si, ParaInfo *pi):
 #pragma omp critical
 #endif
   mesh = new MeshList(sinfo, myrect);
+
+#ifdef USE_GPU
+#pragma omp critical
+  checkCudaErrors(cudaStreamCreate(&strm));
+#endif
 };
 //----------------------------------------------------------------------
 MDUnit::~MDUnit(void) {
   delete vars;
   delete mesh;
   delete plist;
+#ifdef USE_GPU
+#pragma omp critical
+  checkCudaErrors(cudaStreamDestroy(strm));
+#endif
 }
 //----------------------------------------------------------------------
 void

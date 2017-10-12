@@ -12,6 +12,9 @@
 #include "mdmanager.h"
 #include "observer.h"
 #include "stopwatch.h"
+#ifdef USE_GPU
+#include "helper_macros.h"
+#endif
 //----------------------------------------------------------------------
 MDManager::MDManager(int &argc, char ** &argv) {
   MPI_Init(&argc, &argv);
@@ -55,11 +58,6 @@ MDManager::MDManager(int &argc, char ** &argv) {
 
   const auto gpu_id = rank % num_gpus_per_node;
   checkCudaErrors(cudaSetDevice(gpu_id));
-
-  strms.resize(num_threads);
-  for (auto& strm : strms) checkCudaErrors(cudaStreamCreate(&strm));
-
-  pn_gpu.resize(num_threads);
 #endif
 
   pinfo = new ParaInfo(num_procs, num_threads, param);
@@ -95,13 +93,6 @@ MDManager::~MDManager(void) {
   for (unsigned int i = 0; i < mdv.size(); i++) {
     delete mdv[i];
   }
-
-#ifdef USE_GPU
-  for (auto& strm : strms) {
-    checkCudaErrors(cudaStreamDestroy(strm));
-  }
-#endif
-
   delete pinfo;
   delete sinfo;
   MPI_Finalize();
@@ -199,83 +190,133 @@ MDManager::Calculate(void) {
   swAll.Stop();
 }
 //----------------------------------------------------------------------
+#ifdef USE_GPU
+#define GPU_CUDA_ENTER                                      \
+  static StopWatch swForce_cpu(GetRank(), "force_cpu");     \
+  static StopWatchCuda swForce_gpu(GetRank(), "force_gpu");	\
+  static int profile_cnt = 0;                               \
+  swForce_gpu.Start(); swForce_cpu.Start()
+
+//----------------------------------------------------------------------
+#define GPU_CUDA_EXIT                                         \
+  swForce_cpu.Stop();                                         \
+                                                              \
+  checkCudaErrors(cudaDeviceSynchronize());                   \
+  swForce_gpu.Record();                                       \
+                                                              \
+  const auto tgpu = swForce_gpu.GetSumOfLastElements();       \
+  const auto tcpu = swForce_cpu.GetSumOfLastElements();       \
+  tgpu_per_tcpu = tgpu / tcpu;                                \
+  if (profile_cnt == 100) {                                   \
+    mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << "\n";	\
+    profile_cnt = 0;                                          \
+  }                                                           \
+  profile_cnt++
+//----------------------------------------------------------------------
+#define FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY)                              \
+  for (int i = 0; i < num_threads; i++) {                               \
+    mdv[i]->SendParticlesHostToDev();                                   \
+    LOOP_BODY;                                                          \
+    mdv[i]->SendParticlesDevToHost();                                   \
+  }                                                                     \
+  swForce_gpu.Stop()
+//----------------------------------------------------------------------
+#define HOST_NAME CPU
+//----------------------------------------------------------------------
+#else
+#define GPU_CUDA_ENTER
+#define GPU_CUDA_EXIT
+#define FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY)
+#define HOST_NAME MDACP_EMPTY
+#endif
+//----------------------------------------------------------------------
 void
 MDManager::CalculateForce(void) {
-#ifdef USE_GPU
-  static StopWatch swForce_cpu(GetRank(), "force_cpu");
-  static StopWatchCuda swForce_gpu(GetRank(), "force_gpu");
-  static int profile_cnt = 0;
+  GPU_CUDA_ENTER;
 
-  // start timer
-  swForce_gpu.Start(); swForce_cpu.Start();
+#undef LOOP_BODY_INNER
+#define LOOP_BODY_INNER(DEVICE_T)                       \
+  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
+  MDACP_CONCAT(mdv[i]->UpdatePositionHalf, DEVICE_T)()
 
-  // gpu force calc
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->CalculateForceGPU(pn_gpu[i], strms[i]);
+  // calculate @ GPU
+  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+  // calculate @ CPU
+#pragma omp parallel
+  {
+    const auto i = omp_get_thread_num();
+    LOOP_BODY_INNER(HOST_NAME);
   }
-  swForce_gpu.Stop();
 
-  // cpu force calc
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->CalculateForceCPU(pn_gpu[i]);
-  }
-  swForce_cpu.Stop();
-
-  // cpu gpu sync
-  checkCudaErrors(cudaDeviceSynchronize());
-  swForce_gpu.Record();
-
-  // show load imbalance
-  const auto tgpu = swForce_gpu.GetSumOfLastElements();
-  const auto tcpu = swForce_cpu.GetSumOfLastElements();
-  tgpu_per_tcpu = tgpu / tcpu;
-  if (profile_cnt == 100) {
-    mout << "gpu_time/cpu_time = " << tgpu_per_tcpu << "\n";
-    profile_cnt = 0;
-  }
-  profile_cnt++;
-
-  // position update
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->UpdatePositionHalf();
-  }
-#else
-
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->CalculateForce();
-    mdv[i]->UpdatePositionHalf();
-  }
-#endif // end of USE_GPU
+  GPU_CUDA_EXIT;
 }
 //----------------------------------------------------------------------
 void
 MDManager::CalculateNoseHoover(void) {
+  GPU_CUDA_ENTER;
+
+#undef LOOP_BODY_INNER
+#define LOOP_BODY_INNER(DEVICE_T)                     \
+  MDACP_CONCAT(mdv[i]->HeatbathMomenta, DEVICE_T)();  \
+  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();   \
+  MDACP_CONCAT(mdv[i]->HeatbathMomenta, DEVICE_T)()
+
   double t = Temperature();
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->HeatbathZeta(t);
-    mdv[i]->HeatbathMomenta();
-    mdv[i]->CalculateForce();
-    mdv[i]->HeatbathMomenta();
+  for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
+
+  // calculate @ GPU
+  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+  // calculate @ CPU
+  #pragma omp parallel
+  {
+    const auto i = omp_get_thread_num();
+    LOOP_BODY_INNER(HOST_NAME);
   }
+
+  GPU_CUDA_EXIT;
+
+#undef LOOP_BODY_INNER
+#define LOOP_BODY_INNER(DEVICE_T)                       \
+  MDACP_CONCAT(mdv[i]->UpdatePositionHalf, DEVICE_T)()
+
   t = Temperature();
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->HeatbathZeta(t);
-    mdv[i]->UpdatePositionHalf();
+  for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
+
+  // calculate @ GPU
+  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+  // calculate @ CPU
+  #pragma omp parallel
+  {
+    const auto i = omp_get_thread_num();
+    LOOP_BODY_INNER(HOST_NAME);
   }
+
+  checkCudaErrors(cudaDeviceSynchronize());
 }
 //----------------------------------------------------------------------
 void
 MDManager::CalculateLangevin(void) {
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < num_threads; i++) {
-    mdv[i]->CalculateForce();
-    mdv[i]->Langevin();
+  GPU_CUDA_ENTER;
+
+#undef LOOP_BODY_INNER
+#define LOOP_BODY_INNER(DEVICE_T)                       \
+  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
+  MDACP_CONCAT(mdv[i]->Langevin, DEVICE_T)()
+
+  // calculate @ GPU
+  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+  // calculate @ CPU
+  #pragma omp parallel
+  {
+    const auto i = omp_get_thread_num();
+    LOOP_BODY_INNER(HOST_NAME);
   }
+
+  GPU_CUDA_EXIT;
 }
 //----------------------------------------------------------------------
 void
@@ -371,8 +412,8 @@ MDManager::MakePairList(void) {
 #ifdef USE_GPU
   AdjustCPUGPUWorkBalance();
   for (int i = 0; i < num_threads; i++) {
-    mdv[i]->SendNeighborInfoToGPUAsync(pn_gpu[i], strms[i]);
-    mdv[i]->TransposeSortedList(pn_gpu[i], strms[i]);
+    mdv[i]->SendNeighborInfoToGPUAsync();
+    mdv[i]->TransposeSortedList();
   }
   checkCudaErrors(cudaDeviceSynchronize());
 #endif
@@ -562,7 +603,7 @@ MDManager::AdjustCPUGPUWorkBalance(void) {
   if (work_balance <= 0.0) work_balance = 0.0;
   if (work_balance >= 1.0) work_balance = 1.0;
   for (int i = 0; i < num_threads; i++) {
-    pn_gpu[i] = int(mdv[i]->GetParticleNumber() * work_balance);
+    mdv[i]->UpdateParticleNumberGPU(work_balance);
   }
 }
 #endif

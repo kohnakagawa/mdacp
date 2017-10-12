@@ -38,8 +38,8 @@ if (USE_GPU_CUDA)
   set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -arch=sm_60 -Xptxas -v")
 
   link_directories(${CUDA_PATH}/lib64)
-  include_directories(${CUDA_PATH}/include)
-  include_directories(${CUDA_PATH}/samples/common/inc)
+  include_directories(SYSTEM ${CUDA_PATH}/include)
+  include_directories(SYSTEM ${CUDA_PATH}/samples/common/inc)
 
   cuda_compile(fcalculator_o ./src/fcalculator.cu)
   cuda_compile(meshlist_o ./src/meshlist.cu)
