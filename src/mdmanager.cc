@@ -213,20 +213,19 @@ MDManager::Calculate(void) {
   }                                                           \
   profile_cnt++
 //----------------------------------------------------------------------
-#define FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY)                              \
-  for (int i = 0; i < num_threads; i++) {                               \
-    mdv[i]->SendParticlesHostToDev();                                   \
-    LOOP_BODY;                                                          \
-    mdv[i]->SendParticlesDevToHost();                                   \
-  }                                                                     \
-  swForce_gpu.Stop()
+#define INNER_LOOP_TEMPLATE_GPU(LOOP_BODY)      \
+  mdv[i]->SendParticlesHostToDev();             \
+  LOOP_BODY;                                    \
+  mdv[i]->SendParticlesDevToHost()
 //----------------------------------------------------------------------
+#define GPU_TIMER_STOP swForce_gpu.Stop()
 #define HOST_NAME CPU
 //----------------------------------------------------------------------
 #else
 #define GPU_CUDA_ENTER
 #define GPU_CUDA_EXIT
-#define FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY)
+#define INNER_LOOP_TEMPLATE_GPU(LOOP_BODY)
+#define GPU_TIMER_STOP
 #define HOST_NAME MDACP_EMPTY
 #endif
 //----------------------------------------------------------------------
@@ -239,13 +238,20 @@ MDManager::CalculateForce(void) {
   MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
   MDACP_CONCAT(mdv[i]->UpdatePositionHalf, DEVICE_T)()
 
-  // calculate @ GPU
-  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
-
-  // calculate @ CPU
 #pragma omp parallel
   {
     const auto i = omp_get_thread_num();
+
+    // calculate @ GPU
+    INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+#ifdef USE_GPU
+    #pragma omp barrier
+    #pragma omp single nowait
+#endif
+    GPU_TIMER_STOP;
+
+    // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
 
@@ -264,37 +270,31 @@ MDManager::CalculateNoseHoover(void) {
 
   double t = Temperature();
   for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
-
-  // calculate @ GPU
-  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
-
-  // calculate @ CPU
-  #pragma omp parallel
+#pragma omp parallel
   {
     const auto i = omp_get_thread_num();
+
+    // calculate @ GPU
+    INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+#ifdef USE_GPU
+    #pragma omp barrier
+    #pragma omp single nowait
+#endif
+    GPU_TIMER_STOP;
+
+    // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
 
   GPU_CUDA_EXIT;
 
-#undef LOOP_BODY_INNER
-#define LOOP_BODY_INNER(DEVICE_T)                       \
-  MDACP_CONCAT(mdv[i]->UpdatePositionHalf, DEVICE_T)()
-
   t = Temperature();
-  for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
-
-  // calculate @ GPU
-  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
-
-  // calculate @ CPU
-  #pragma omp parallel
-  {
-    const auto i = omp_get_thread_num();
-    LOOP_BODY_INNER(HOST_NAME);
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->HeatbathZeta(t);
+    mdv[i]->UpdatePositionHalf();
   }
-
-  checkCudaErrors(cudaDeviceSynchronize());
 }
 //----------------------------------------------------------------------
 void
@@ -306,13 +306,20 @@ MDManager::CalculateLangevin(void) {
   MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
   MDACP_CONCAT(mdv[i]->Langevin, DEVICE_T)()
 
-  // calculate @ GPU
-  FORCE_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
-
-  // calculate @ CPU
-  #pragma omp parallel
+#pragma omp parallel
   {
     const auto i = omp_get_thread_num();
+
+    // calculate @ GPU
+    INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+
+#ifdef USE_GPU
+    #pragma omp barrier
+    #pragma omp single nowait
+#endif
+    GPU_TIMER_STOP;
+
+    // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
 
