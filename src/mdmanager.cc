@@ -35,7 +35,7 @@ MDManager::MDManager(int &argc, char ** &argv) {
                       true);
 #endif
   arg_parser.parse_check(argc, argv);
-  const std::string inputfile = arg_parser.get<std::string>("filein");
+  const std::string inputfile = arg_parser.get<std::string>("in");
   param.LoadFromFile(inputfile.c_str());
 
   num_threads = omp_get_max_threads();
@@ -226,13 +226,11 @@ MDManager::Calculate(void) {
 //----------------------------------------------------------------------
 void
 MDManager::CalculateForce(void) {
-  GPU_CUDA_ENTER;
-
 #undef LOOP_BODY_INNER
 #define LOOP_BODY_INNER(DEVICE_T)                       \
-  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
-  MDACP_CONCAT(mdv[i]->UpdatePositionHalf, DEVICE_T)()
+  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)()
 
+  GPU_CUDA_ENTER;
 #pragma omp parallel
   {
     const auto i = omp_get_thread_num();
@@ -249,14 +247,16 @@ MDManager::CalculateForce(void) {
     // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
-
   GPU_CUDA_EXIT;
+
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->UpdatePositionHalf();
+  }
 }
 //----------------------------------------------------------------------
 void
 MDManager::CalculateNoseHoover(void) {
-  GPU_CUDA_ENTER;
-
 #undef LOOP_BODY_INNER
 #define LOOP_BODY_INNER(DEVICE_T)                     \
   MDACP_CONCAT(mdv[i]->HeatbathMomenta, DEVICE_T)();  \
@@ -265,6 +265,8 @@ MDManager::CalculateNoseHoover(void) {
 
   double t = Temperature();
   for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
+
+  GPU_CUDA_ENTER;
 #pragma omp parallel
   {
     const auto i = omp_get_thread_num();
@@ -281,7 +283,6 @@ MDManager::CalculateNoseHoover(void) {
     // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
-
   GPU_CUDA_EXIT;
 
   t = Temperature();
@@ -294,13 +295,11 @@ MDManager::CalculateNoseHoover(void) {
 //----------------------------------------------------------------------
 void
 MDManager::CalculateLangevin(void) {
-  GPU_CUDA_ENTER;
-
 #undef LOOP_BODY_INNER
-#define LOOP_BODY_INNER(DEVICE_T)                       \
-  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)();     \
-  MDACP_CONCAT(mdv[i]->Langevin, DEVICE_T)()
+#define LOOP_BODY_INNER(DEVICE_T)                   \
+  MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)()
 
+  GPU_CUDA_ENTER;
 #pragma omp parallel
   {
     const auto i = omp_get_thread_num();
@@ -317,8 +316,12 @@ MDManager::CalculateLangevin(void) {
     // calculate @ CPU
     LOOP_BODY_INNER(HOST_NAME);
   }
-
   GPU_CUDA_EXIT;
+
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < num_threads; i++) {
+    mdv[i]->Langevin();
+  }
 }
 //----------------------------------------------------------------------
 void

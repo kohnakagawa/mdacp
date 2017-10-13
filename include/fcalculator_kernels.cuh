@@ -131,19 +131,6 @@ namespace ForceCalculator {
   }
   //----------------------------------------------------------------------
   __global__ void
-  UpdatePositionHalfCUDA(VecCuda* __restrict__ q,
-                         const VecCuda* __restrict__ p,
-                         const double dt2,
-                         const int    pn) {
-    const auto tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= pn) return;
-
-    q[tid].x += p[tid].x * dt2;
-    q[tid].y += p[tid].y * dt2;
-    q[tid].z += p[tid].z * dt2;
-  }
-  //----------------------------------------------------------------------
-  __global__ void
   HeatbathMomentaCUDA(VecCuda* __restrict__ p,
                       const double exp1,
                       const int pn) {
@@ -155,21 +142,6 @@ namespace ForceCalculator {
     p[tid].z *= exp1;
   }
   //----------------------------------------------------------------------
-  __global__ void
-  LangevinCUDA(VecCuda* __restrict__ p,
-               curandState* __restrict__ state,
-               const double dt,
-               const double hb_gamma,
-               const double hbD,
-               const int pn) {
-    const auto tid = threadIdx.x + blockIdx.x * blockDim.x;
-    if (tid >= pn) return;
-
-    const auto r = curand_normal_double(&state[tid]) + hbD;
-    p[tid].x += (-hb_gamma * p[tid].x + r) * dt;
-    p[tid].y += (-hb_gamma * p[tid].y + r) * dt;
-    p[tid].z += (-hb_gamma * p[tid].z + r) * dt;
-  }
 };
 //----------------------------------------------------------------------
 #endif

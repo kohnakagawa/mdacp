@@ -16,9 +16,6 @@
 #include "pairlist.h"
 #include "observer.h"
 #include "fcalculator.h"
-#ifdef USE_GPU
-#include "helper_macros.h"
-#endif
 //----------------------------------------------------------------------
 class MDUnit;
 //----------------------------------------------------------------------
@@ -77,21 +74,18 @@ public:
   void SendParticlesDevToHost(void) {
     ForceCalculator::SendParticlesDevToHost(vars, pn_gpu, strm);
   }
-
-#define DEFINE_CPU_GPU_MEMBERS_FCALC(FNAME, WRAPPER_ARGS, HOST_ARGS, DEV_ARGS) \
-  void MDACP_CONCAT(FNAME, CPU) WRAPPER_ARGS {                          \
-    MDACP_NAMESPACE_AT(ForceCalculator, FNAME) HOST_ARGS;		\
-  };                                                                    \
-  void MDACP_CONCAT(FNAME, GPU) WRAPPER_ARGS {                          \
-    MDACP_NAMESPACE_AT(ForceCalculator, FNAME) DEV_ARGS;                \
-  }
-
-  DEFINE_CPU_GPU_MEMBERS_FCALC(CalculateForce, (void), (vars, mesh, sinfo, pn_gpu), (vars, mesh, sinfo, pn_gpu, strm));
-  DEFINE_CPU_GPU_MEMBERS_FCALC(UpdatePositionHalf, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
-  DEFINE_CPU_GPU_MEMBERS_FCALC(HeatbathMomenta, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
-  DEFINE_CPU_GPU_MEMBERS_FCALC(Langevin, (void), (vars, sinfo, pn_gpu), (vars, sinfo, pn_gpu, strm));
-#undef DEFINE_CPU_GPU_MEMBERS_FCALC
-
+  void CalculateForceCPU(void) {
+    ForceCalculator::CalculateForce(vars, mesh, sinfo, pn_gpu);
+  };
+  void CalculateForceGPU(void) {
+    ForceCalculator::CalculateForce(vars, mesh, sinfo, pn_gpu, strm);
+  };
+  void HeatbathMomentaCPU(void) {
+    ForceCalculator::HeatbathMomenta(vars, sinfo, pn_gpu);
+  };
+  void HeatbathMomentaGPU(void) {
+    ForceCalculator::HeatbathMomenta(vars, sinfo, pn_gpu, strm);
+  };
 #endif
 
   void MakeBufferForSendingParticle(const int dir);

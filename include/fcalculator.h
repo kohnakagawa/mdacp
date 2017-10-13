@@ -33,18 +33,14 @@ namespace ForceCalculator {
                       cudaStream_t strm);
   void CalculateForce(Variables* vars, MeshList *mesh, SimulationInfo *sinfo, const int beg);
 
-  void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo, const int pn_gpu,
-                          cudaStream_t strm);
   void HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const int pn_gpu,
                        cudaStream_t strm);
-  void Langevin(Variables *vars, SimulationInfo *sinfo, const int pn_gpu,
-                cudaStream_t strm);
 #endif
-  void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo, const int beg = 0);
+  void UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo);
   void CalculateForce(Variables *vars, MeshList *mesh, SimulationInfo *sinfo);
   void HeatbathZeta(Variables *vars, double ct, SimulationInfo *sinfo);
   void HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const int beg = 0);
-  void Langevin(Variables *vars, SimulationInfo *sinfo, const int beg = 0);
+  void Langevin(Variables *vars, SimulationInfo *sinfo);
 };
 //----------------------------------------------------------------------
 #endif

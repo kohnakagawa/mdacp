@@ -15,13 +15,13 @@
 #endif
 //----------------------------------------------------------------------
 void
-ForceCalculator::UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo, const int beg) {
+ForceCalculator::UpdatePositionHalf(Variables *vars, SimulationInfo *sinfo) {
   const double dt2 = sinfo->TimeStep * 0.5;
   const int pn = vars->GetParticleNumber();
   double (*q)[D] = vars->q;
   double (*p)[D] = vars->p;
   int *type = vars->type;
-  for (int i = beg; i < pn; i++) {
+  for (int i = 0; i < pn; i++) {
     //if (type[i] != 0)continue;
     q[i][X] += p[i][X] * dt2;
     q[i][Y] += p[i][Y] * dt2;
@@ -999,16 +999,16 @@ ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const i
 }
 //----------------------------------------------------------------------
 void
-ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo, const int beg) {
-	static thread_local std::mt19937 mt(omp_get_thread_num());
+ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo) {
+	thread_local std::mt19937 mt(omp_get_thread_num());
   const double dt = sinfo->TimeStep;
   const int pn = vars->GetParticleNumber();
   double (*p)[D] = vars->p;
   const double hb_gamma = sinfo->HeatbathGamma;
   const double T = sinfo->AimedTemperature;
-  const double hb_D = sqrt(2.0 * hb_gamma * T / dt);
-	std::normal_distribution<double> nd(hb_D);
-  for (int i = beg; i < pn; i++) {
+  const double hb_D = std::sqrt(2.0 * hb_gamma * T / dt);
+	std::normal_distribution<double> nd(0.0, hb_D);
+  for (int i = 0; i < pn; i++) {
     for (int d = 0; d < D; d++) {
       const double r = nd(mt);
       p[i][d] += (-hb_gamma * p[i][d] + r) * dt;
