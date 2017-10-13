@@ -27,7 +27,7 @@ $ make
 $ source env/sekirei.sh
 $ mkdir build
 $ cd build
-$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=gcc -DUSE_GPU_CUDA=true -DUSE_AVX2=true
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=gcc -DUSE_AVX2=true -DUSE_GPU_CUDA=true -DGPU_ARCH=KEPLER
 $ make
 ```
 
@@ -37,7 +37,7 @@ $ make
 $ source env/reedbush-l.sh
 $ mkdir build
 $ cd build
-$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=mpicc -DUSE_GPU_CUDA=true -DUSE_AVX2=true
+$ cmake ../ -DCMAKE_CXX_COMPILER=mpicxx -DCMAKE_C_COMPILER=mpicc -DUSE_AVX2=true -DUSE_GPU_CUDA=true -DGPU_ARCH=PASCAL
 $ make
 ```
 
