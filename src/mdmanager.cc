@@ -13,9 +13,7 @@
 #include "observer.h"
 #include "stopwatch.h"
 #include "cmdline.h"
-#ifdef USE_GPU
 #include "helper_macros.h"
-#endif
 //----------------------------------------------------------------------
 MDManager::MDManager(int &argc, char ** &argv) {
   MPI_Init(&argc, &argv);
@@ -221,7 +219,7 @@ MDManager::Calculate(void) {
 #define GPU_CUDA_EXIT
 #define INNER_LOOP_TEMPLATE_GPU(LOOP_BODY)
 #define GPU_TIMER_STOP
-#define HOST_NAME MDACP_EMPTY
+#define HOST_NAME
 #endif
 //----------------------------------------------------------------------
 void

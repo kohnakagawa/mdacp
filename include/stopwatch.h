@@ -10,6 +10,7 @@
 #include <helper_cuda.h>
 #include <cuda_runtime.h>
 #endif
+#include "helper_macros.h"
 //----------------------------------------------------------------------
 struct TimerCPUImpl {
   typedef double Dtype;
@@ -37,6 +38,9 @@ struct TimerCPUImpl {
                      const Dtype& stop,
                      std::vector<double>& data) {
     // dummy
+    MDACP_UNUSED_PARAM(start);
+    MDACP_UNUSED_PARAM(stop);
+    MDACP_UNUSED_PARAM(data);
   }
 };
 //----------------------------------------------------------------------
@@ -64,6 +68,9 @@ struct TimerGPUImpl {
                         const Dtype& stop,
                         std::vector<double>& data) {
     // dummy
+    MDACP_UNUSED_PARAM(start);
+    MDACP_UNUSED_PARAM(stop);
+    MDACP_UNUSED_PARAM(data);
   }
   static void Record(const Dtype& start,
                      const Dtype& stop,

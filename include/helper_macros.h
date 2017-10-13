@@ -4,7 +4,7 @@
 //----------------------------------------------------------------------
 #define MDACP_CONCATENATE(x, y) x ## y
 #define MDACP_CONCAT(x, y) MDACP_CONCATENATE(x, y)
-#define MDACP_EMPTY
+#define MDACP_UNUSED_PARAM(val) (void)(val)
 //----------------------------------------------------------------------
 #endif
 //----------------------------------------------------------------------

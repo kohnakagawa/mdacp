@@ -1000,14 +1000,14 @@ ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const i
 //----------------------------------------------------------------------
 void
 ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo) {
-	thread_local std::mt19937 mt(omp_get_thread_num());
+  thread_local std::mt19937 mt(omp_get_thread_num());
   const double dt = sinfo->TimeStep;
   const int pn = vars->GetParticleNumber();
   double (*p)[D] = vars->p;
   const double hb_gamma = sinfo->HeatbathGamma;
   const double T = sinfo->AimedTemperature;
   const double hb_D = std::sqrt(2.0 * hb_gamma * T / dt);
-	std::normal_distribution<double> nd(0.0, hb_D);
+  std::normal_distribution<double> nd(0.0, hb_D);
   for (int i = 0; i < pn; i++) {
     for (int d = 0; d < D; d++) {
       const double r = nd(mt);
