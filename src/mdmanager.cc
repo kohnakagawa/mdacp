@@ -12,6 +12,7 @@
 #include "mdmanager.h"
 #include "observer.h"
 #include "stopwatch.h"
+#include "cmdline.h"
 #ifdef USE_GPU
 #include "helper_macros.h"
 #endif
@@ -22,41 +23,35 @@ MDManager::MDManager(int &argc, char ** &argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   mout.SetRank(rank);
   mout << "# " << MDACP_VERSION << std::endl;
-  std::string inputfile;
-  if (argc > 1) {
-    inputfile = argv[1];
-  } else {
-    mout << "# Input file is not specified. input.cfg is used." << std::endl;
-    inputfile = "input.cfg";
-  }
+
+  cmdline::parser arg_parser;
+  arg_parser.add<std::string>("in", 'i', "input file name", false, "input.cfg");
+#ifdef USE_GPU
+  const auto num_gpus_avail = get_number_of_devices();
+  mout << "# " << num_gpus_avail << "GPUs are found." << std::endl;
+  arg_parser.add<int>("num_gpus_per_node", 'g', "number of gpus per one node",
+                      false, num_gpus_avail, cmdline::range(1, num_gpus_avail));
+  arg_parser.add<int>("num_of_procs_per_gpu", 'p', "number of processes per one gpu",
+                      true);
+#endif
+  arg_parser.parse_check(argc, argv);
+  const std::string inputfile = arg_parser.get<std::string>("filein");
   param.LoadFromFile(inputfile.c_str());
 
   num_threads = omp_get_max_threads();
-  mout << "# " << num_procs << " MPI Process(es), " << num_threads << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
+  mout << "# " << num_procs << " MPI Process(es), " << num_threads
+       << " OpenMP Thread(s), Total " << num_procs * num_threads << " Unit(s)" << std::endl;
 
 #ifdef USE_GPU
-  int num_gpus_per_node = 0, dev_cnt = 0;
-  checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
-  mout << "# " << dev_cnt << "GPUs are found." << std::endl;
-  if (argc > 2) {
-    num_gpus_per_node = std::atoi(argv[2]);
-    if (num_gpus_per_node <= 0) {
-      mout << "Error: num_gpus_per_node should be positive." << std::endl;
-      exit(1);
-    }
-    if (num_gpus_per_node > dev_cnt) {
-      mout << "Error: Too many GPUs (" << num_gpus_per_node << ") are specified." << std::endl;
-      mout << "There is(are)" << dev_cnt << "GPU(s) in one node." << std::endl;
-      exit(1);
-    }
-  } else {
-    mout << "# Number of GPUs per node is not specified." << std::endl;
-    num_gpus_per_node = dev_cnt;
+  const auto ngpus = arg_parser.get<int>("num_gpus_per_node");
+  mout << "# Will use " << ngpus << "GPU(s) / node." << std::endl;
+  for (int i = 0; i < ngpus; i++) device_query(i);
+  const auto num_of_procs_per_gpu = arg_parser.get<int>("num_of_procs_per_gpu");
+  if (ngpus * num_of_procs_per_gpu != num_procs) {
+    show_error("# of GPU(s) per node * # of procs per GPU should be equal to total number of MPI processes.");
+    exit(1);
   }
-  mout << "# Will use " << num_gpus_per_node << "GPU(s) / node." << std::endl;
-  for (int i = 0; i < num_gpus_per_node; i++) device_query(i);
-
-  const auto gpu_id = rank % num_gpus_per_node;
+  const auto gpu_id = (rank / num_of_procs_per_gpu) % ngpus;
   checkCudaErrors(cudaSetDevice(gpu_id));
 #endif
 

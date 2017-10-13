@@ -56,3 +56,10 @@ device_query(const int dev_id) {
   mout << "\n";
 }
 //----------------------------------------------------------------------
+int
+get_number_of_devices(void) {
+  int dev_cnt = 0;
+  checkCudaErrors(cudaGetDeviceCount(&dev_cnt));
+  return dev_cnt;
+}
+//----------------------------------------------------------------------

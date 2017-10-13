@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <omp.h>
 #include "fcalculator.h"
 //----------------------------------------------------------------------
 #ifdef FX10
@@ -878,7 +879,7 @@ ForceCalculator::CalculateForceReactlessSIMD_errsafe(Variables *vars, MeshList *
 
   double (*p)[D] = vars->p;
   const int pn = vars->GetTotalParticleNumber();
-  __thread static double q[N][D];
+  static thread_local double q[N][D];
   memcpy((void*)q, (void*)vars->q, sizeof(double) * 3 * pn);
 
   const int *sorted_list = mesh->GetSortedList();
@@ -999,7 +1000,7 @@ ForceCalculator::HeatbathMomenta(Variables *vars, SimulationInfo *sinfo, const i
 //----------------------------------------------------------------------
 void
 ForceCalculator::Langevin(Variables *vars, SimulationInfo *sinfo, const int beg) {
-	static std::mt19937 mt(1);
+	static thread_local std::mt19937 mt(omp_get_thread_num());
   const double dt = sinfo->TimeStep;
   const int pn = vars->GetParticleNumber();
   double (*p)[D] = vars->p;
