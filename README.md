@@ -75,13 +75,3 @@ $ mpijob ./mdacp -i input.cfg
 ```sh
 $ mpijob ./mdacp -i input.cfg -p 8 -g 2
 ```
-
-## List of Developers
-- *Hiroshi Watanabe <hwatanabe@issp.u-tokyo.ac.jp>
-    - Institute for Solid State Physics, University of Tokyo (Corresponding Author)
-
-- Masaru Suzuki
-    - Department of Applied Quantum Physics and Nuclear Engineering, Faculty of Engineering, Kyushu University
-
-- Nobuyasu Ito
-    - Department of Applied Physics, School of Engineering, The University of Tokyo
