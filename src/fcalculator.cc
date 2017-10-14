@@ -741,9 +741,9 @@ void
 ForceCalculator::CalculateForceReactless(Variables *vars, MeshList *mesh, SimulationInfo *sinfo,
                                          const int beg) {
   const double CL2 = CUTOFF_LENGTH * CUTOFF_LENGTH;
-  const double C2 = vars->GetC2();
-  const double dt = sinfo->TimeStep;
-  const int pn = vars->GetTotalParticleNumber();
+  const double C2  = vars->GetC2();
+  const double dt  = sinfo->TimeStep;
+  const int pn     = vars->GetParticleNumber();
 
   double (*q)[D] = vars->q;
   double (*p)[D] = vars->p;
