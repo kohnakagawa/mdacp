@@ -418,7 +418,10 @@ MDManager::MakePairList(void) {
   AdjustCPUGPUWorkBalance();
   for (int i = 0; i < num_threads; i++) {
     mdv[i]->SendNeighborInfoToGPUAsync();
+#if __CUDA_ARCH__ < 600
+#warning "TransposedList is not used for force calculation."
     mdv[i]->TransposeSortedList();
+#endif
   }
   checkCudaErrors(cudaDeviceSynchronize());
 #endif

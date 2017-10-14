@@ -48,8 +48,10 @@ ForceCalculator::CalculateForce(Variables* vars,
 
   CudaPtr2D<double, N, D>& q = vars->q_buf;
   CudaPtr2D<double, N, D>& p = vars->p_buf;
-#if 0
+#if __CUDA_ARCH__ >= 600
   // optimized for Pascal
+  #warning "Force kernel optimized for Pascal is selected!"
+
   const auto gr_size = (WARP_SIZE * pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
   CalculateForceWarpUnrollReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
                                                                                  (VecCuda*)p.GetDevPtr(),
@@ -59,6 +61,8 @@ ForceCalculator::CalculateForce(Variables* vars,
                                                                                  CL2, C2, dt, pn_gpu);
 #else
   // optimized for Kepler
+  #warning "Force kernel optimized for Kepler is selected!"
+
   const auto gr_size = (pn_gpu - 1) / THREAD_BLOCK_SIZE + 1;
   CalculateForceReactlessCUDA<<<gr_size, THREAD_BLOCK_SIZE, 0, strm>>>((VecCuda*)q.GetDevPtr(),
                                                                        (VecCuda*)p.GetDevPtr(),
