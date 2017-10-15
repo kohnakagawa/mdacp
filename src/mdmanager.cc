@@ -191,7 +191,6 @@ MDManager::Calculate(void) {
   static StopWatchCuda swForce_gpu(GetRank(), "force_gpu");	\
   static int profile_cnt = 0;                               \
   swForce_gpu.Start(); swForce_cpu.Start()
-
 //----------------------------------------------------------------------
 #define GPU_CUDA_EXIT                                         \
   swForce_cpu.Stop();                                         \
