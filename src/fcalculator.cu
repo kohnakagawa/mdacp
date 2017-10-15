@@ -48,7 +48,7 @@ ForceCalculator::CalculateForce(Variables* vars,
 
   CudaPtr2D<double, N, D>& q = vars->q_buf;
   CudaPtr2D<double, N, D>& p = vars->p_buf;
-#if __CUDA_ARCH__ >= 600
+#ifdef GPU_ARCH_PASCAL
   // optimized for Pascal
   #warning "Force kernel optimized for Pascal is selected!"
 
