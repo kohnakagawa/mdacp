@@ -230,23 +230,20 @@ MDManager::CalculateForce(void) {
 #define LOOP_BODY_INNER(DEVICE_T)                       \
   MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)()
 
+  // calculate @ GPU
   GPU_CUDA_ENTER;
-#pragma omp parallel
-  {
-    const auto i = omp_get_thread_num();
-
-    // calculate @ GPU
+  for (int i = 0; i < nthreads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+  }
+  GPU_TIMER_STOP;
 
-#ifdef USE_GPU
-    #pragma omp barrier
-    #pragma omp single nowait
-#endif
-    GPU_TIMER_STOP;
-
-    // calculate @ CPU
+  // calculate @ CPU
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < nthreads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
+
+  // sync CPU and GPU
   GPU_CUDA_EXIT;
 
   #pragma omp parallel for schedule(static)
@@ -266,23 +263,20 @@ MDManager::CalculateNoseHoover(void) {
   double t = Temperature();
   for (int i = 0; i < num_threads; i++) { mdv[i]->HeatbathZeta(t); }
 
+  // calculate @ GPU
   GPU_CUDA_ENTER;
-#pragma omp parallel
-  {
-    const auto i = omp_get_thread_num();
-
-    // calculate @ GPU
+  for (int i = 0; i < nthreads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+  }
+  GPU_TIMER_STOP;
 
-#ifdef USE_GPU
-    #pragma omp barrier
-    #pragma omp single nowait
-#endif
-    GPU_TIMER_STOP;
-
-    // calculate @ CPU
+  // calculate @ CPU
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < nthreads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
+
+  // sync CPU and GPU
   GPU_CUDA_EXIT;
 
   t = Temperature();
@@ -299,23 +293,20 @@ MDManager::CalculateLangevin(void) {
 #define LOOP_BODY_INNER(DEVICE_T)                   \
   MDACP_CONCAT(mdv[i]->CalculateForce, DEVICE_T)()
 
+  // calculate @ GPU
   GPU_CUDA_ENTER;
-#pragma omp parallel
-  {
-    const auto i = omp_get_thread_num();
-
-    // calculate @ GPU
+  for (int i = 0; i < nthreads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
+  }
+  GPU_TIMER_STOP;
 
-#ifdef USE_GPU
-    #pragma omp barrier
-    #pragma omp single nowait
-#endif
-    GPU_TIMER_STOP;
-
-    // calculate @ CPU
+  // calculate @ CPU
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < nthreads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
+
+  // sync CPU and GPU
   GPU_CUDA_EXIT;
 
   #pragma omp parallel for schedule(static)
