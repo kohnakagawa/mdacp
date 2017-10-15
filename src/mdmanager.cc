@@ -232,14 +232,14 @@ MDManager::CalculateForce(void) {
 
   // calculate @ GPU
   GPU_CUDA_ENTER;
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
   }
   GPU_TIMER_STOP;
 
   // calculate @ CPU
   #pragma omp parallel for schedule(static)
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
 
@@ -265,14 +265,14 @@ MDManager::CalculateNoseHoover(void) {
 
   // calculate @ GPU
   GPU_CUDA_ENTER;
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
   }
   GPU_TIMER_STOP;
 
   // calculate @ CPU
   #pragma omp parallel for schedule(static)
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
 
@@ -295,14 +295,14 @@ MDManager::CalculateLangevin(void) {
 
   // calculate @ GPU
   GPU_CUDA_ENTER;
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     INNER_LOOP_TEMPLATE_GPU(LOOP_BODY_INNER(GPU));
   }
   GPU_TIMER_STOP;
 
   // calculate @ CPU
   #pragma omp parallel for schedule(static)
-  for (int i = 0; i < nthreads; i++) {
+  for (int i = 0; i < num_threads; i++) {
     LOOP_BODY_INNER(HOST_NAME);
   }
 
