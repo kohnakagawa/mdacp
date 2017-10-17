@@ -69,8 +69,8 @@ $ mpijob ./mdacp -i input.cfg
 
 *** CPU + GPU @ ISSP System B
 
-* Total number of MPI processes is 16.
-* 8 MPI processes are assigned to each GPU.
+- Total number of MPI processes is 16.
+- 8 MPI processes are assigned to each GPU.
 
 #+BEGIN_SRC sh
 $ mpijob ./mdacp -i input.cfg -p 8 -g 2
