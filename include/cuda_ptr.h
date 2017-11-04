@@ -41,9 +41,12 @@ public:
   CudaPtr& operator = (CudaPtr&& obj) noexcept {
     this->dev_ptr_ = obj.dev_ptr_;
     this->host_ptr_ = obj.host_ptr_;
+    this->size_ = obj.size_;
+    this->thrust_ptr_ = obj.thrust_ptr_;
 
     obj.dev_ptr_ = nullptr;
     obj.host_ptr_ = nullptr;
+    obj.size_ = -1;
 
     return *this;
   }

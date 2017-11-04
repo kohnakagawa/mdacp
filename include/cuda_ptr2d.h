@@ -19,7 +19,7 @@ class CudaPtr2D {
   void Allocate(void) {
     checkCudaErrors(cudaHostRegister((void**)&host_ptr_[0],
                                      Nx * Ny * sizeof(T),
-                                     cudaHostRegisterPortable));
+                                     cudaHostRegisterDefault));
     checkCudaErrors(cudaMalloc((void**)&dev_ptr_,
                                Nx * Ny * sizeof(T)));
     thrust_ptr_ = thrust::device_pointer_cast(dev_ptr_);
