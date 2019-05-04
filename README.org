@@ -5,7 +5,7 @@ MDACP (Molecular Dynamics code for Avogadro Challenge Project) is an
 efficient implementations of classical molecular dynamics (MD) method
 for the Lennard-Jones particle systems.
 
-This fork of MDACP is designated to support (1) the force calculation 
+This fork of MDACP is designed to support (1) the force calculation
 with GPU and MIC (2) pairlist construction using SIMD instructions. 
 
 The latest information of original MDACP is available at
